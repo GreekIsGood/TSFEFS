@@ -1,10 +1,5 @@
 from general import *
 
-# class PieceStruct():
-#     pass
-
-# class PieceStructCollection():
-#     pass
 
 
 
@@ -751,6 +746,7 @@ class TSFEFS():
 
         df = self.dfs[idx]
         assert df is not None
+        
         type_ = self.types[idx]
         len_ = None
         if type_ == "csv":
@@ -923,7 +919,25 @@ class TSFEFS():
         idx_tobemerged = self.action_params[idx]
         assert isinstance(idx_tobemerged,int)
         df_tobemerged = self.dfs[idx_tobemerged]
-        assert df_tobemerged is not None
+        
+        
+        
+        """
+        I might have reasons for this line,
+        but seems like it is now causing trouble.
+        Let's recall the reason?
+        """
+        # assert df_tobemerged is not None
+        """
+        Temporarily replace the above line by this
+        """
+        if df_tobemerged is None:
+            df_tobemerged = self.__read_piece(idx_tobemerged)
+            self.dfs[idx_tobemerged] = df_tobemerged
+
+            
+            
+            
         
         type_ = self.types[idx]
         type_tobemerged = self.types[idx_tobemerged]
@@ -1023,6 +1037,11 @@ class TSFEFS():
     
     
     
+    
+    
+    ################################################################################################################
+    ############################################## Import,Export: BEG ##############################################
+
 
     def __no_overlapping_time_range(self):
         """
@@ -1049,17 +1068,67 @@ class TSFEFS():
         
         # rearrange all the lists according to orders
         for idx in orders:
+            
+            df = self.dfs[idx]
+            if df is None:
+                df = self.__read_piece(idx)
+
             type_ = self.types[idx]
             if type_ == "csv":
-                dfs.append(self.dfs[idx])
+                # dfs.append(self.dfs[idx])
+                dfs.append(df)
             elif type_ == "tsfefs":
-                dfs.append(self.dfs[idx].export_dataframe())
+                # dfs.append(self.dfs[idx].export_dataframe())
+                dfs.append(df.export_dataframe())
             else:
                 print("Type", type_, "not supported")
                 assert False
                 
         df = pd.concat(dfs).reset_index(drop=True)
         return df
+
+    
+    
+    def export_dstfile(self, dstfile):
+        df = self.export_dataframe()
+        df.to_csv(dstfile,index=False)
+        return
+
+    
+    
+    def export_dstfolder(self, dstfolder):
+        """
+        Don't allow if any of those frs and tos are None,
+        otherwise can't name the dst files.
+        """
+        assert self.has_valid_status() # no None in the lists
+
+        """
+        Don't allow if there is pending actions, 
+        otherwise can't copy from src to dst.
+        """
+        assert not self.has_pending_actions()
+        
+
+        if not os.path.isdir(dstfolder):
+            os.mkdir(dstfolder)
+            
+        """
+        The export format is e.g., "3. 2020-01-10 03:05:11 ~ 2020-01-10 03:05:11.csv"
+        """
+        fullpath = self.__compose_fullpath()
+        for idx in range(len(self.pieces)):
+            piece = self.pieces[idx]
+            fr, to = self.frs[idx], self.tos[idx]
+            
+            src = "%s/%s"%(fullpath,piece)
+            fr = fr.strftime(self.datetime_format)
+            to = to.strftime(self.datetime_format)
+            f = "%i. %s ~ %s.csv"%(idx,fr,to)
+            dst = "%s/%s"%(dstfolder,f)
+            os.system("cp \"%s\" \"%s\""%(src,dst))
+        return
+
     
 
     def import_dataframe(self, df):
@@ -1078,8 +1147,82 @@ class TSFEFS():
         self += df
         self.__action_split(0)
         return
+
+    
+    def import_srcfile(self, srcfile):
+        df = pd.read_csv(srcfile, dtype={self.time_col:str})
+        assert self.time_col in df.columns
+        df[self.time_col] = df[self.time_col].apply(lambda x: dt.strptime(x,self.datetime_format))        
+        self.import_dataframe(df)
+        return
+
+    
+    def import_srcfolder(self, srcfolder):
+        
+        """
+        List of files to be copied
+        """
+        files = os.listdir(srcfolder)
+        if srcfolder[-1] == '/':
+            srcfolder = srcfolder[:-1]
+        files = [ "%s/%s"%(srcfolder,f) for f in files ]
+        files = [ f for f in files if not os.path.isdir(f) ]
         
         
+        """
+        starts from nothing
+        """
+        self.pieces = []
+        self.types = []
+        self.frs = []
+        self.tos = []
+        self.row_cnts = []
+
+        self.actions = []
+        self.action_params = []
+        self.dfs = []
+        
+        self.cache = []
+
+        
+        fullpath = self.__compose_fullpath()
+        if not os.path.isdir(fullpath):
+            os.mkdir(fullpath)
+
+        
+        """
+        1. copy files to fullpath
+        2. initialize the lists
+        3. do everything as if done in __action_update but not calling __action_update
+        """
+        for idx,f in enumerate(files):
+            src = f
+            piece = self.gen_valid_piece(prefix="", suffix="")
+            dst = "%s/%s"%(fullpath,piece)
+            # print("Command:", "cp \"%s\" \"%s\""%(src,dst))
+            os.system("cp \"%s\" \"%s\""%(src,dst))
+            
+            self.pieces += [piece]
+            self.types += ["csv"]
+            
+            # dfs[idx] has to exist before calling __get_time(idx)
+            self.dfs += [None]
+            S = self.__get_time(idx)
+            
+            self.frs += [min(S)]
+            self.tos += [max(S)]
+            self.row_cnts += [len(S)]
+
+            self.actions += [""] # the above info are filled, to avoid calling __action_update
+            self.action_params += [None]
+            
+        self.fr = min(self.frs)
+        self.to = max(self.tos)
+        self.row_cnt = sum(self.row_cnts)
+        return
+
+
+    
     def all_pieces_as_csv(self):
         
         dfs = []
@@ -1101,6 +1244,8 @@ class TSFEFS():
             self.actions[len(self.actions)-1] = "split"
         self.take_actions(max_level=2)
         return
+    ############################################## Import,Export: END ##############################################
+    ################################################################################################################
 
     
 
@@ -1716,7 +1861,11 @@ class TSFEFS():
         self.dfs[_order] = df
         self.actions[_order] = "update"
 
-        self.renew_idx(_order)
+        """
+        Should it be renewed in cache?
+        2023-10-07, decided not to renew in cache.
+        """
+        # self.renew_idx(_order) 
             
         if len_ == 0:
             self.actions[_order] = "delete"
@@ -1773,7 +1922,11 @@ class TSFEFS():
             self.dfs[_order] = df
             self.actions[_order] = "update"
 
-            self.renew_idx(_order)
+            """
+            Should it be renewed in cache?
+            2023-10-07, decided not to renew in cache.
+            """
+            # self.renew_idx(_order)
 
             if len_ == 0:
                 self.actions[_order] = "delete"
@@ -2478,7 +2631,7 @@ class TSFEFS():
         full_index_df_name = '/'.join([fullname,TSFEFS.index_df_name])
         df_index.to_csv(full_index_df_name, index=False)
         return
-    ################################################# Read, Write: BEG #################################################
+    ################################################# Read, Write: END #################################################
     ####################################################################################################################
 
         
