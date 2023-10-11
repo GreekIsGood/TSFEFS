@@ -210,6 +210,13 @@ class TSFEFS():
         self.tos = list(df_index["to"])
         self.row_cnts = list(df_index["row_cnt"])
         
+        try:
+            self.fr, self.to = min(self.frs), max(self.tos)
+            self.row_cnt = sum(self.row_cnts)
+        except:
+            pass
+            
+        
         if orders is not None:
             self.dfs = [ self.dfs[order_] for order_ in orders ]
             self.actions = [ self.actions[order_] for order_ in orders ]
@@ -914,7 +921,21 @@ class TSFEFS():
     def __action_merge(self, idx):
         
         df = self.dfs[idx]
-        assert df is not None
+        
+        """
+        I might have reasons for this line,
+        but seems like it is now causing trouble.
+        Let's recall the reason?
+        """
+        # assert df is not None
+        """
+        Temporarily replace the above line by this
+        """
+        if df is None:
+            df = self.__read_piece(idx)
+            self.dfs[idx] = df
+            
+        
         
         idx_tobemerged = self.action_params[idx]
         assert isinstance(idx_tobemerged,int)
@@ -1083,7 +1104,10 @@ class TSFEFS():
             else:
                 print("Type", type_, "not supported")
                 assert False
-                
+
+        if len(dfs) == 0:
+            return pd.DataFrame()
+        
         df = pd.concat(dfs).reset_index(drop=True)
         return df
 
@@ -1493,7 +1517,7 @@ class TSFEFS():
             dfs.append(df_)
             indices = indices[len(adjusted_indices):]
         
-        
+
         if len(dfs) == 0:
             return pd.DataFrame()
         
