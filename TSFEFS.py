@@ -1167,6 +1167,8 @@ class TSFEFS():
         self.action_params = []
         self.dfs = []
         
+        self.cache = []
+        
         df = df.sort_values(by=self.time_col).reset_index(drop=True)
         self += df
         self.__action_split(0)
