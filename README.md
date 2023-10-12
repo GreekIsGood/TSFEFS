@@ -6,8 +6,9 @@ Time Series Feature Engineering File System for<br>
 ## More about TSFEFS
 Using Cloud database is expensive, in terms of the storage cost of the data, as well as the massive operations.<br>
 TSFEFS enables all the data to be stored as files, provided with easy time-series accesses for read and write.<br>
-On top of TSFEFS, SafeTSFEFS is a wrapper class of TSFEFS that provides easy access of TSFEFS without having the programmer managing commands.<br>
-It is because every single execution of SafeTSFEFS includes all the subsequent potential "safe" operations, which is sub-optimal and slow, but safe.<br>
+On top of TSFEFS, SafeTSFEFS is a wrapper class of TSFEFS that provides easy access of TSFEFS without <br>
+having the programmer managing commands. It is because every single execution of SafeTSFEFS includes <br>
+all the subsequent potential "safe" operations, which is sub-optimal and slow, but safe.<br>
 
 ### Features
  - Import (export) from (to) dataframe, src (dst) file, src (dst) folder.
@@ -20,9 +21,9 @@ It is because every single execution of SafeTSFEFS includes all the subsequent p
 ## Getting Started
 
 ### Dependencies
-Python 3.10.5
-pandas==2.0.1
-numpy==1.24.3
+Python 3.10.5<br>
+pandas==2.0.1<br>
+numpy==1.24.3<br>
 
 ### Installing
 Tentatively will make it an installable package.
