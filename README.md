@@ -34,12 +34,18 @@ Tentatively will make it an installable package.
 Tentatively will make it a Docker image.
 
 ### Executing program
-Look at the examples in ./test TSFEFS/ for
+1. Look at the examples in ./1. test TSFEFS/ for
  - faster execution
  - more programmer judgement
-Look at the examples in ./test SafeTSFEFS/ for
+<br>
+2. Look at the examples in ./2. test SafeTSFEFS/ for
  - no brainer
  - slow execution
+<br>
+3. For the admin, TSFEFS was tested with real data (Gold historical price).<br>
+Such data is not in github, users are suggested to test their own real data <br>
+by reusing the procedures in ./3. test RealData/
+
 
 ## Authors
 Contributors names and contact info
