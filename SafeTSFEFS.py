@@ -266,6 +266,92 @@ class SafeTSFEFS():
 
     
 
+
+    
+    
+    
+    
+    ####################################################################################################################
+    #################################################### MERGE: BEG ####################################################
+    # # @classmethod
+    # # def merge(cls, left_obj, right_obj, path="", name="", on="", target=None):
+    # @staticmethod
+    # def merge(left_obj, right_obj, path="", name="", on="", target=None):
+    #     print("Class method")
+    #     """
+    #     1. This will create a new SafeTSFEFS anyway.
+    #     2. For class merge, requiring a new path and a new name.
+    #     3. The left_obj has to be (SafeTSFEFS, TSFEFS).
+    #     4. The right_obj can be (pd.DataFrame, TSFEFS, SafeTSFEFS)
+    #     5. Target is the targeted columns for the right_obj.
+    #     """
+    #     assert (path is not None) and (name is not None) and (on is not None)
+    #     assert "" not in [path, name, on]
+    #     assert isinstance(left_obj, (SafeTSFEFS, TSFEFS))
+    #     assert isinstance(right_obj, (SafeTSFEFS, TSFEFS, pd.DataFrame))
+
+    #     if isinstance(left_obj, SafeTSFEFS):
+    #         left_obj = left_obj.tsfefs
+    #     if isinstance(right_obj, SafeTSFEFS):
+    #         right_obj = right_obj.tsfefs
+
+    #     # this will create a new SafeTSFEFS
+    #     # cannot give it the real path,name in the 1st step
+    #     # since creating SafeTSFEFS(path, name, tsfefs) will make a clone again.
+    #     tsfefs = TSFEFS.merge(left_obj, right_obj, path=os.getcwd(), name="toberemoved", on=on, target=target)
+    #     stsfefs = SafeTSFEFS(path, name, tsfefs)
+    #     tsfefs.remove()
+
+    #     if stsfefs.tsfefs.has_pending_actions():
+    #         stsfefs.tsfefs.take_actions(max_level=3)
+    #     return stsfefs
+        
+
+    
+    def merge(self, right_obj, on, target=None, path=None, name=None):
+        
+        if isinstance(right_obj, (pd.DataFrame, TSFEFS)):
+            pass
+        elif isinstance(right_obj, SafeTSFEFS):
+            right_obj = right_obj.tsfefs
+        else:
+            assert False
+            
+        
+        """
+        1. If both (path is None) and (name is None), it will use the same TSFEFS,
+        2. otherise (path is not None) and (name is not None) will make a clone.
+        
+        For 1, the same SafeTSFEFS should be returned,
+        For 2, a new SafeTSFEFS should be return.
+        """
+        if (path is None) and (name is None):            
+            # this won't create a new tsfefs
+            self.tsfefs = self.tsfefs.merge(right_obj, on, target=target)
+            stsfefs = self
+        elif (path is not None) and (name is not None):            
+            # this will create a new tsfefs
+            # cannot give it the real path,name in the 1st step
+            # since creating SafeTSFEFS(path, name, tsfefs) will make a clone again.
+            tsfefs = self.tsfefs.merge(right_obj, on, target=target, path=os.getcwd(), name="toberemoved")
+            stsfefs = SafeTSFEFS(path, name, tsfefs)
+            tsfefs.remove()                
+        else:
+            assert False
+            
+        if stsfefs.tsfefs.has_pending_actions():
+            stsfefs.tsfefs.take_actions(max_level=3)
+        return stsfefs
+    
+    #################################################### MERGE: END ####################################################
+    ####################################################################################################################
+    
+    
+    
+    
+    
+    
+    
     
     
     

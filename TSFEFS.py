@@ -2475,6 +2475,208 @@ class TSFEFS():
     #####################################################################################################################
 
 
+
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    ####################################################################################################################
+    #################################################### MERGE: BEG ####################################################
+    # # @classmethod
+    # # def merge(cls, left_obj, right_obj, path="", name="", on="", target=None):
+    # @staticmethod
+    # def merge(left_obj, right_obj, path="", name="", on="", target=None):
+    #     """
+    #     1. For class merge, requiring a new path and a new name.
+    #     2. The left_obj has to be TSFEFS.
+    #     3. The right_obj can be (pd.DataFrame, TSFEFS)
+    #     4. Target is the targeted columns for the right_obj.
+    #     """
+    #     assert (path is not None) and (name is not None) and (on is not None)
+    #     assert "" not in [path, name, on]
+    #     assert isinstance(left_obj,TSFEFS)
+    #     assert isinstance(right_obj,(TSFEFS,pd.DataFrame))
+    #     tsfefs = left_obj.merge(right_obj, on, target=target, path=path, name=name)
+    #     return tsfefs
+
+    
+    def __get_tsfefs_reference(self,path,name):
+        if path is None:
+            assert name is None
+            tsfefs = self
+        elif path is not None:
+            assert name is not None            
+            tsfefs = self.clone(path, name)
+        else:
+            assert False
+        return tsfefs
+    
+
+    
+    def merge_with_df(self, df_another, on, target):
+        
+        """
+        !!!!!!!!!!! Important !!!!!!!!!!!
+        I am struggling with the following implementation.
+        Ideally, the merge should be done by merging pieces, 
+        i.e.,
+            pd.merge(df_piece, df_another)
+        instead of 
+            pd.merge(self[on], df_another)
+            
+        This current implementation is for the sake of convenience,
+        !!! CHANGE ANYTIME FEELING SLOW !!!
+        """
+        
+        # orders = self.__no_overlapping_time_range()
+        
+        df_self_on = self[on]
+        df_another_on = df_another[on+target].drop_duplicates().reset_index(drop=True)
+        # print("1. df_another_on")
+        # print(df_another_on)
+        # print()
+        
+        on_col = "__on__"
+        delim = "@$*^%"
+        df_self_on[on_col] = df_self_on.apply(lambda x: delim.join([ str(xx) for xx in x ]), axis=1)
+        df_self_on = df_self_on[[on_col]]
+        df_another_on[on_col] = df_another_on[on].apply(lambda x: delim.join([ str(xx) for xx in x ]), axis=1)
+        df_another_on = df_another_on[[on_col] + target]
+        # print("2. df_another_on")
+        # print(df_another_on)
+        # print()
+        
+        """
+        Check 1-to-1
+        """
+        df_uon = df_self_on[[on_col]]
+        df_uon = df_uon.drop_duplicates().reset_index(drop=True) 
+        n = len(df_uon)
+        # print("len(df_uon):", n)
+        # print()
+        # print("df_uon")
+        # print(df_uon)
+        # print()
+        df_one2one = pd.merge(df_uon, df_another_on, on=on_col, how="left").reset_index(drop=True)
+
+        # no NA is allowed.
+        df_one2one = df_one2one.dropna().reset_index(drop=True)
+        # print("len(df_one2one):", len(df_one2one))
+        assert len(df_one2one) == n 
+        
+        # no duplicate is allowed.
+        df_one2one = df_one2one.drop_duplicates().reset_index(drop=True) 
+        # print("len(df_one2one):", len(df_one2one))
+        assert len(df_one2one) == n
+
+        
+        """
+        real merge
+        """
+        df_target = pd.merge(df_self_on, df_another_on, on=on_col, how="left").reset_index(drop=True)
+        # just to reassure
+        assert len(df_self_on) == len(df_target)
+        
+        # the order of df_target must be the same
+        for col in target:
+            # setting new columns 
+            assert col not in self.colnames
+            self[col] = df_target[col]
+        
+        return self
+    
+    
+    
+    def merge_with_tsfefs(self, tsfefs_another, on, target):
+        return self.merge_with_df(tsfefs_another[on+target], on, target)
+
+        
+
+    def merge(self, right_obj, on, target=None, path=None, name=None):
+        
+        """
+        on: 
+         (self[on[0]] == right_obj[on[0]]) and 
+         (self[on[1]] == right_obj[on[1]]) and
+         ...
+         
+         E.g., on=["cusID","branch"]
+         
+        target:
+          - If None then all the remaining cols in right_obj will be merged
+          - Else:
+          
+            E.g., on=["cusID","branch"], target=["gender","citizen"]
+            Notice that for a unique comb of on, there cannot be more than 1 comb from the targets.
+        """
+        
+        
+        tsfefs = self.__get_tsfefs_reference(path,name)
+
+        
+        assert isinstance(on,(str,list))
+        if isinstance(on,list):
+            assert all([ isinstance(col,str) for col in on ])
+        else:
+            on = [on]
+
+            
+        if isinstance(right_obj, pd.DataFrame):
+            right_cols = list(right_obj.columns)
+        elif isinstance(right_obj, TSFEFS):
+            """ if TSFEFS, its time_col should be a dummy"""
+            right_cols = dc(right_obj.colnames)
+            right_cols.remove(right_obj.time_col)
+        else:
+            assert False
+
+            
+        # validity of on
+        assert len(set(on) - set(tsfefs.colnames)) == 0
+        assert len(set(on) - set(right_cols)) == 0
+        right_cols = list(set(right_cols) - set(on))
+            
+
+        # validity of target
+        if target is not None:
+            assert isinstance(target,(str,list))
+            if isinstance(target,str):
+                target = [target]
+            else:
+                assert all([ isinstance(col,str) for col in target ])
+            assert len(set(target) - set(right_cols)) == 0
+        else:
+            target = right_cols
+                          
+
+                          
+        # on and target should be mutually exclusive
+        assert len(target) + len(on) == len(set(target+on))
+
+        if isinstance(right_obj, pd.DataFrame):
+            tsfefs = tsfefs.merge_with_df(right_obj, on, target)
+        elif isinstance(right_obj, TSFEFS):
+            tsfefs = tsfefs.merge_with_tsfefs(right_obj, on, target)
+        else:
+            assert False
+            
+        return tsfefs
+    #################################################### MERGE: END ####################################################
+    ####################################################################################################################
+    
+    
+    
+    
+    
+    
+    
     
     
     
