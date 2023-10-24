@@ -87,6 +87,12 @@ class BaseFEFS():
         
         # Cache section
         self.cache = None
+        
+        self.seq_trans_method = None
+        self.seq_inv_trans_method = None
+        self.seq_dtype = None
+        
+        
 
 
 
@@ -188,19 +194,23 @@ class BaseFEFS():
         except:
             pass
 
-        
+
+
         # dtf = self.datetime_format
-        # try:
-        #     self.fr = dt.strptime(dict_meta["fr"], dtf)
-        #     self.to = dt.strptime(dict_meta["to"], dtf)
-        # except:
-        #     pass
-        self.fr = dict_meta["fr"]
-        self.to = dict_meta["to"]
+        try:
+            self.fr = dict_meta["fr"]
+            self.to = dict_meta["to"]
+            if self.seq_trans_method is not None:
+                assert self.seq_inv_trans_method is not None
+                self.fr = self.seq_trans_method(self.fr)
+                self.to = self.seq_trans_method(self.to)
+        except:
+            pass
 
         return self
 
-    
+
+
     def dump_meta(self):
         
         """ 
@@ -227,20 +237,22 @@ class BaseFEFS():
             pass
 
         # dtf = self.datetime_format
-        # try:
-        #     fr, to = self.fr, self.to
-        #     dict_meta["fr"] = fr.strftime(dtf)
-        #     dict_meta["to"] = to.strftime(dtf)
-        # except:
-        #     pass
-        dict_meta["fr"] = self.fr
-        dict_meta["to"] = self.to
+        try:
+            dict_meta["fr"] = self.fr
+            dict_meta["to"] = self.to
+            if self.seq_inv_trans_method is not None:
+                assert self.seq_trans_method is not None
+                dict_meta["fr"] = self.seq_inv_trans_method(self.fr)
+                dict_meta["to"] = self.seq_inv_trans_method(self.to)
+        except:
+            pass
         
         return dict_meta
 
 
+
     def load_index_df(self, df_index, orders=None):
-        
+
         """ 
         Base class should never be actually called,
         have to be an implemented class.
@@ -257,8 +269,10 @@ class BaseFEFS():
             return self
 
         # dtf = self.datetime_format
-        # df_index["fr"] = df_index["fr"].apply(lambda x: dt.strptime(x,dtf))
-        # df_index["to"] = df_index["to"].apply(lambda x: dt.strptime(x,dtf))        
+        if self.seq_trans_method is not None:
+            assert self.seq_inv_trans_method is not None
+            df_index["fr"] = df_index["fr"].apply(lambda x: self.seq_trans_method(x))
+            df_index["to"] = df_index["to"].apply(lambda x: self.seq_trans_method(x))
         df_index = df_index.sort_values(by="fr").reset_index(drop=True)
         
         self.pieces = list(df_index["piece"])
@@ -277,7 +291,7 @@ class BaseFEFS():
         if orders is not None:
             self.dfs = [ self.dfs[order_] for order_ in orders ]
             self.actions = [ self.actions[order_] for order_ in orders ]
-            self.action_params = [ self.action_params[order_] for order_ in orders ]            
+            self.action_params = [ self.action_params[order_] for order_ in orders ]
             """
             Let's say 
              orders = [3,5,4,0,2,1] => idx3 -> idx0, idx5 -> idx1, ...
@@ -321,6 +335,12 @@ class BaseFEFS():
         # dtf = self.datetime_format
         # df_index["fr"] = df_index["fr"].apply(lambda x: x.strftime(dtf))
         # df_index["to"] = df_index["to"].apply(lambda x: x.strftime(dtf))
+        
+        if self.seq_inv_trans_method is not None:
+            assert self.seq_trans_method is not None
+            df_index["fr"] = df_index["fr"].apply(lambda x: self.seq_inv_trans_method(x))
+            df_index["to"] = df_index["to"].apply(lambda x: self.seq_inv_trans_method(x))
+        
         return (df_index, orders)
     
 
@@ -403,7 +423,6 @@ class BaseFEFS():
         
     ##########################################################################################################
     ######################################### Path, Name, Piece: BEG #########################################
-    #@classmethod
     @staticmethod
     def get_random_string(n):
         # choose from all lowercase letter
@@ -474,6 +493,7 @@ class BaseFEFS():
         
         fullpath = '/'.join([self.path, self.name + '.' + self.__class__.extension])
         return fullpath
+    
 
     def __compose_piece_fullname(self,piece):
 
@@ -554,51 +574,56 @@ class BaseFEFS():
             
 
     """
-    Just save csv, not considering other TSFEFS / piece structure.
+    Seems like not being used.
     """
-    def __to_csv(self,idx):
+    # @deprecated
+    # def __to_csv(self,idx):
 
-        """ 
-        Base class should never be actually called,
-        have to be an implemented class.
-        """
-        assert self.__class__ != BaseFEFS
-        
-        
-        piece = self.pieces[idx]
-        fullname = self.__compose_piece_fullname(piece)
-        # df = df.sort_values(by=self.time_col).reset_index(drop=True)
-        df = df.sort_values(by=self.seq_col).reset_index(drop=True)
+    #     """ 
+    #     Base class should never be actually called,
+    #     have to be an implemented class.
+    #     """
+    #     assert self.__class__ != BaseFEFS
 
-        self.dfs[idx] = df
-        # dtf = self.datetime_format
-        df2 = dc(df)
-        # df2[self.time_col] = df2[self.time_col].apply(lambda x: x.strftime(dtf))
-        df2.to_csv(fullname, index=False)
-        del df2; df2 = None
-        return
 
+    #     piece = self.pieces[idx]
+    #     fullname = self.__compose_piece_fullname(piece)
+    #     # df = df.sort_values(by=self.time_col).reset_index(drop=True)
+    #     df = df.sort_values(by=self.seq_col).reset_index(drop=True)
+
+    #     self.dfs[idx] = df
+    #     # dtf = self.datetime_format
+    #     df2 = dc(df)
+    #     # df2[self.time_col] = df2[self.time_col].apply(lambda x: x.strftime(dtf))
+    #     df2.to_csv(fullname, index=False)
+    #     del df2; df2 = None
+    #     return
+
+    
     """
-    Just read csv, not considering other TSFEFS / piece structure.
+    Seems like not being used.
     """
-    def __read_csv(self,idx):
+    # @deprecated
+    # def __read_csv(self,idx):
 
-        """ 
-        Base class should never be actually called,
-        have to be an implemented class.
-        """
-        assert self.__class__ != BaseFEFS
-        
-        
-        piece = self.pieces[idx]
-        fullname = self.__compose_piece_fullname(piece)
-        # df = pd.read_csv(fullname,dtype={self.time_col:str})
-        df = pd.read_csv(fullname,dtype={self.seq_col:str})
-        
-        # dtf = self.datetime_format
-        # df[self.time_col] = df[self.time_col].apply(lambda x: dt.strptime(x,dtf))
-        return df
+    #     """ 
+    #     Base class should never be actually called,
+    #     have to be an implemented class.
+    #     """
+    #     assert self.__class__ != BaseFEFS
 
+
+    #     piece = self.pieces[idx]
+    #     fullname = self.__compose_piece_fullname(piece)
+    #     # df = pd.read_csv(fullname,dtype={self.time_col:str})
+    #     # df = pd.read_csv(fullname,dtype={self.seq_col:str})
+    #     df = pd.read_csv(fullname)
+
+    #     # dtf = self.datetime_format
+    #     # df[self.time_col] = df[self.time_col].apply(lambda x: dt.strptime(x,dtf))
+    #     return df
+
+    
 
     def __read_piece(self, idx):
 
@@ -613,12 +638,17 @@ class BaseFEFS():
         type_ = self.types[idx]
         fullname = self.__compose_piece_fullname(piece)
         if type_ == "csv":
-            # df = pd.read_csv(fullname, dtype={self.time_col:str})
-            df = pd.read_csv(fullname, dtype={self.seq_col:str})
-            
+
+            if self.seq_dtype is None:
+                df = pd.read_csv(fullname)
+            else:
+                df = pd.read_csv(fullname, dtype={self.seq_col:self.seq_dtype})
+
             # dtf = self.datetime_format
-            # df[self.time_col] = df[self.time_col].apply(lambda x: dt.strptime(x,dtf))
-            # df = df.sort_values(by=self.time_col).reset_index(drop=True)
+            if self.seq_trans_method is not None:
+                assert self.seq_inv_trans_method is None
+                df[self.seq_col] = df[self.seq_col].apply(lambda x: self.seq_trans_method(x))                
+
             df = df.sort_values(by=self.seq_col).reset_index(drop=True)
             
             self.dfs[idx] = df
@@ -635,13 +665,12 @@ class BaseFEFS():
             fefs = self.__class__()
             fullname += '.' + self.__class__.extension
             fefs.read(fullname)
-            return fefs
+            self.dfs[idx] = fefs
+            return self.dfs[idx]
         
         else:
             print("File type \"%s\" not yet implemented"%str(type_))
             assert False
-            
-        return
     
     
     
@@ -673,7 +702,9 @@ class BaseFEFS():
             self.dfs[idx] = df
             # dtf = self.datetime_format
             df2 = dc(df)
-            # df2[self.time_col] = df2[self.time_col].apply(lambda x: x.strftime(dtf))
+            if self.seq_inv_trans_method is not None:
+                assert self.seq_trans_method is None
+                df2[self.seq_col] = df2[self.seq_col].apply(lambda x: self.seq_inv_trans_method(x))                
             
             df2.to_csv(fullname, index=False)
             del df2; df2 = None
@@ -1386,7 +1417,7 @@ class BaseFEFS():
     ############################################## Import,Export: BEG ##############################################
 
 
-    def __no_overlapping_time_range(self):
+    def __no_overlapping_seq_range(self):
 
         """ 
         Base class should never be actually called,
@@ -1420,7 +1451,7 @@ class BaseFEFS():
         assert self.__class__ != BaseFEFS
         
                         
-        orders = self.__no_overlapping_time_range()
+        orders = self.__no_overlapping_seq_range()
         
         dfs = []
         
@@ -1461,6 +1492,9 @@ class BaseFEFS():
         
                         
         df = self.export_dataframe()
+        if self.seq_inv_trans_method is not None:
+            assert self.seq_trans_method is None
+            df[self.seq_col] = df[self.seq_col].apply(lambda x: self.seq_inv_trans_method(x))
         df.to_csv(dstfile,index=False)
         return
 
@@ -1548,9 +1582,15 @@ class BaseFEFS():
         assert self.__class__ != BaseFEFS
         
                         
-        df = pd.read_csv(srcfile, dtype={self.time_col:str})
+        if self.seq_dtype is None:
+            df = pd.read_csv(srcfile)
+        else:
+            df = pd.read_csv(srcfile, dtype={self.seq_col:self.seq_dtype})
+
         assert self.seq_col in df.columns
-        # df[self.time_col] = df[self.time_col].apply(lambda x: dt.strptime(x,self.datetime_format))
+        if self.seq_trans_method is not None:
+            assert self.seq_inv_trans_method is None
+            df[self.seq_col] = df[self.seq_col].apply(lambda x: self.seq_trans_method(x))
         self.import_dataframe(df)
         return
 
@@ -1879,7 +1919,7 @@ class BaseFEFS():
 
         
         idx = self.__idx_check(idx)        
-        orders = self.__no_overlapping_time_range()
+        orders = self.__no_overlapping_seq_range()
         _order, accum_row_cnt = self.__get_piece_idx(idx, orders)
         
         df = self.dfs[_order]
@@ -1920,7 +1960,7 @@ class BaseFEFS():
         self.__str_check(colname)
         
         values = []
-        orders = self.__no_overlapping_time_range()
+        orders = self.__no_overlapping_seq_range()
         for _order in orders:
             df = self.dfs[_order]
             if df is None:
@@ -1974,7 +2014,7 @@ class BaseFEFS():
         indices_copied = dc(indices)
 
         dfs = []
-        orders = self.__no_overlapping_time_range()
+        orders = self.__no_overlapping_seq_range()
         
         while len(indices) > 0:
             _order, adjusted_indices = self.__get_indices_in_same_piece(indices, orders)
@@ -2040,7 +2080,7 @@ class BaseFEFS():
         dfs = []
         indices = []
         cum_row_cnt = 0
-        orders = self.__no_overlapping_time_range()
+        orders = self.__no_overlapping_seq_range()
         for _order in orders:
             df = self.dfs[_order]
             if df is None:
@@ -2149,7 +2189,7 @@ class BaseFEFS():
         else:
             pass # you can put any type of single value to the idx row.
             
-        orders = self.__no_overlapping_time_range()
+        orders = self.__no_overlapping_seq_range()
         for _order in orders:
             row_cnt = self.row_cnts[_order]
             if idx > row_cnt - 1:
@@ -2207,7 +2247,7 @@ class BaseFEFS():
             value = [value]*self.row_cnt
 
         cnt = 0
-        orders = self.__no_overlapping_time_range()
+        orders = self.__no_overlapping_seq_range()
         for _order in orders:
             idx = _order
             df = self.dfs[_order]
@@ -2243,7 +2283,7 @@ class BaseFEFS():
                         
         indices = self.__indices_check(indices)
         value = self.__value_check(value, len(self.colnames), len(indices))
-        orders = self.__no_overlapping_time_range()
+        orders = self.__no_overlapping_seq_range()
         
         cnt = 0
         for idx in indices:
@@ -2318,7 +2358,7 @@ class BaseFEFS():
                                 
         self.__strs_check(colnames)
         value = self.__value_check(value, len(colnames), self.row_cnt)
-        orders = self.__no_overlapping_time_range()
+        orders = self.__no_overlapping_seq_range()
         
         cum_row_cnt = 0
         for _order in orders:
@@ -2412,7 +2452,7 @@ class BaseFEFS():
 
 
         idx = self.__idx_check(idx)        
-        orders = self.__no_overlapping_time_range()
+        orders = self.__no_overlapping_seq_range()
         _order, accum_row_cnt = self.__get_piece_idx(idx, orders)
 
         df = self.dfs[_order]
@@ -2470,7 +2510,7 @@ class BaseFEFS():
         self.__str_check(colname)
         assert colname != self.time_col
 
-        orders = self.__no_overlapping_time_range()
+        orders = self.__no_overlapping_seq_range()
         for _order in orders:
             df = self.dfs[_order]
             if df is None:
@@ -2494,7 +2534,7 @@ class BaseFEFS():
         indices = self.__indices_check(indices)
         indices_copied = dc(indices)
         
-        orders = self.__no_overlapping_time_range()
+        orders = self.__no_overlapping_seq_range()
 
         while len(indices) > 0:
             _order, adjusted_indices = self.__get_indices_in_same_piece(indices, orders)
@@ -2564,7 +2604,7 @@ class BaseFEFS():
         self.__strs_check(colnames)
         assert self.seq_col not in colnames
         
-        orders = self.__no_overlapping_time_range()
+        orders = self.__no_overlapping_seq_range()
         for _order in orders:
             df = self.dfs[_order]
             type_ = self.types[_order]
@@ -2713,10 +2753,16 @@ class BaseFEFS():
         type_ = self.types[idx]
         if type_ == "csv":
 
+            
             # time_col = self.time_col
             # dtf = self.datetime_format
             seq_col = self.seq_col
-            df = pd.read_csv(fullname, usecols=[seq_col], dtype={seq_col:str})
+
+            if seq_col is None:
+                df = pd.read_csv(fullname, usecols=[seq_col])
+            else:
+                df = pd.read_csv(fullname, usecols=[seq_col], dtype={seq_col:self.seq_dtype})
+
             df = df.sort_values(by=seq_col).reset_index(drop=True)
             S = df[seq_col]
         
@@ -2781,16 +2827,6 @@ class BaseFEFS():
 
 
 
-    # def __get_times(self):
-
-    #     S = []
-    #     for order_ in self.__no_overlapping_time_range():
-    #         S_ = self.__get_time(order_)
-    #         S_ = list(S_)
-    #         S.extend(S_)
-    #     S = pd.Series(S)
-    #     return S
-
     def __get_seqs(self):
 
         """ 
@@ -2801,7 +2837,7 @@ class BaseFEFS():
 
                 
         S = []
-        for order_ in self.__no_overlapping_time_range():
+        for order_ in self.__no_overlapping_seq_range():
             S_ = self.__get_seq(order_)
             S_ = list(S_)
             S.extend(S_)
@@ -3383,15 +3419,12 @@ class BaseFEFS():
         # self.types += ["tsfefs"]
         self.types += [ self.__class__.__name__ ]
         
-        # self.frs += [tsfefs.fr]
-        # self.tos += [tsfefs.to]
-        # self.row_cnts += [tsfefs.row_cnt]
         self.frs += [None]
         self.tos += [None]
         self.row_cnts += [None]
         self.actions += ["update"]
         self.action_params += [None]
-        self.dfs += [fefs] # the elements can be df or TSFEFS
+        self.dfs += [fefs]
         
         self.include_idx(len(self.pieces)-1) # len(self.pieces)-1: the new highest array idx
 
@@ -3411,13 +3444,16 @@ class BaseFEFS():
         assert self.seq_col in df.columns
         assert len(set(self.colnames) - set(df.columns)) == 0
         assert len(set(df.columns) - set(self.colnames)) == 0
-        # try:
-        #     dtf = self.datetime_format
-        #     _ = df[self.time_col].apply(lambda x: x.strftime(dtf))
-        # except:
-        #     print("Problem with df's datetime")
-        #     assert False
-
+        try:
+            if self.seq_inv_trans_method is not None:
+                assert self.seq_trans_method is not None
+                _ = df[self.seq_col].apply(lambda x: self.seq_inv_trans_method(x))
+        except:
+            print("Problem with df's datetime")
+            assert False
+        
+            
+        
         piece = self.gen_valid_piece(prefix="", suffix="")
         
         
@@ -3702,7 +3738,7 @@ class BaseFEFS():
 
                 
         try:
-            _ = self.__no_overlapping_time_range()
+            _ = self.__no_overlapping_seq_range()
             return False
         except:
             return True
@@ -3739,11 +3775,11 @@ class BaseFEFS():
                         df1 = self.__read_piece(idx+1)
                         self.dfs[idx+1] = df1
 
-                    B0 = df0[self.time_col] < self.frs[idx+1]                          
+                    B0 = df0[self.seq_col] < self.frs[idx+1]
                     df0a = df0[B0].reset_index(drop=True)
                     df0b = df0[~B0].reset_index(drop=True)
 
-                    B1 = df1[self.time_col] <= self.tos[idx]
+                    B1 = df1[self.seq_col] <= self.tos[idx]
                     df1a = df1[B1].reset_index(drop=True)
                     df1b = df1[~B1].reset_index(drop=True)
 
@@ -3751,7 +3787,7 @@ class BaseFEFS():
                     self.actions[idx+1] = "delete"
 
                     df_new = pd.concat([df0b,df1a]).reset_index(drop=True)
-                    df_new = df_new.sort_values(by=self.time_col).reset_index(drop=True)
+                    df_new = df_new.sort_values(by=self.seq_col).reset_index(drop=True)
                     
                     if len(df0a) > 0:
                         self += df0a
@@ -3852,7 +3888,10 @@ class BaseFEFS():
         self = self.load_meta(dict_meta)
         
         full_index_df_name = '/'.join([fullname, self.__class__.index_df_name])
-        df_index = pd.read_csv(full_index_df_name, dtype={dict_meta["time_col"]:str})
+        if self.seq_dtype is None:
+            df_index = pd.read_csv(full_index_df_name)
+        else:
+            df_index = pd.read_csv(full_index_df_name, dtype={"fr":self.seq_dtype, "to":self.seq_dtype})  
         self = self.load_index_df(df_index)
         
         self.actions = [ "" for i in range(len(df_index)) ]
