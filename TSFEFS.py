@@ -24,6 +24,8 @@ class TSFEFS(BaseFEFS):
     def print_info(self):
         super().print_info()
         print("datetime_format:", self.datetime_format)
+        print("seq_col dtype used in read_csv:", self.seq_read_dtype)
+        print("seq_col date type (in tuple):", dt_types)
         return
 
 
@@ -35,7 +37,8 @@ class TSFEFS(BaseFEFS):
         self.datetime_format = None
         self.seq_trans_method = lambda x: dt.strptime(x, self.datetime_format)
         self.seq_inv_trans_method = lambda x: x.strftime(self.datetime_format)
-        self.seq_dtype = str
+        self.seq_read_dtype = str
+        self.seq_type = dt_types
 
 
     # @classmethod

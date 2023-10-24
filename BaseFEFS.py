@@ -22,9 +22,23 @@ class BaseFEFS():
         print("pieces:", self.pieces)
         print("types:", self.types)
         print("fr:", self.fr, ", to:", self.to)
-        print("frs:", self.frs )
-        print("tos:", self.tos )
-        # print("time_col:", self.time_col, ", datetime_format:", self.datetime_format)
+        
+        print_frs = self.frs
+        print_tos = self.tos
+        if self.seq_inv_trans_method is not None:
+            assert self.seq_trans_method is not None
+            try:
+                print_frs = [ self.seq_inv_trans_method(fr) for fr in self.frs ]
+                print_tos = [ self.seq_inv_trans_method(to) for to in self.tos ]
+            except:            
+                pass
+        else:
+            assert self.seq_trans_method is None
+            
+        print("frs:", print_frs)
+        print("tos:", print_tos)
+            
+            
         print("seq_col:", self.seq_col)
         
         print("piece_name_len:", self.piece_name_len)
@@ -32,7 +46,10 @@ class BaseFEFS():
         print("row_cnts:", self.row_cnts)
         print("actions:", self.actions, ", action_params:", self.action_params)
         print("cache:", self.cache, ", cache_config:", self.cache_config)
-
+        if self.dfs is None:
+            print("dfs:", self.dfs)
+        else:
+            print("dfs:", [ "Non-emtpy" if df is not None else df for df in self.dfs ])
         return
 
 
@@ -50,7 +67,6 @@ class BaseFEFS():
         # Keys from dict_meta
         self.max_row_per_piece = None
         self.row_cnt = None
-        # self.time_col = None
         # self.datetime_format = None
         self.seq_col = None
         
@@ -90,7 +106,8 @@ class BaseFEFS():
         
         self.seq_trans_method = None
         self.seq_inv_trans_method = None
-        self.seq_dtype = None
+        self.seq_read_dtype = None
+        self.seq_type = None
         
         
 
@@ -112,7 +129,7 @@ class BaseFEFS():
         assert cls != BaseFEFS
         
         
-        # It is supposed to be followed by tsfefs += df
+        # It is supposed to be followed by fefs += df
         fefs = cls()
         
         if path is None:
@@ -125,7 +142,7 @@ class BaseFEFS():
         fefs.fr = None
         fefs.to = None        
         fefs.pieces = []
-        tsfefs.types = []
+        fefs.types = []
         
         fefs.frs = []
         fefs.tos = []
@@ -180,7 +197,6 @@ class BaseFEFS():
         
         # Keys from dict_meta
         self.max_row_per_piece = dict_meta["max_row_per_piece"]
-        # self.time_col = dict_meta["time_col"]
         # self.datetime_format = dict_meta["datetime_format"]
         self.seq_col = dict_meta["seq_col"]
         
@@ -223,7 +239,6 @@ class BaseFEFS():
         # Keys from dict_meta
         dict_meta = {}
         dict_meta["max_row_per_piece"] = self.max_row_per_piece
-        # dict_meta["time_col"] = self.time_col
         # dict_meta["datetime_format"] = self.datetime_format
         dict_meta["seq_col"] = self.seq_col
         
@@ -354,15 +369,14 @@ class BaseFEFS():
         assert self.__class__ != BaseFEFS
         
         
-        # It is supposed to be followed by tsfefs += df
+        # It is supposed to be followed by fefs += df
         fefs = self.__class__()
         
         fefs.path = path
         fefs.name = name
             
         fefs.max_row_per_piece = self.max_row_per_piece
-        # tsfefs.time_col = self.time_col
-        # tsfefs.datetime_format = self.datetime_format
+        # fefs.datetime_format = self.datetime_format
         fefs.seq_col = self.seq_col
         
         fefs.piece_name_len = self.piece_name_len
@@ -531,10 +545,6 @@ class BaseFEFS():
         assert self.__class__ != BaseFEFS
         
         
-        # attributes = [
-        #     self.path, self.name, self.max_row_per_piece, self.row_cnt, self.time_col, self.datetime_format,
-        #     self.piece_name_len, self.fr, self.to, self.colnames, self.cache_config, self.pieces, self.types,
-        #     self.frs, self.tos, self.row_cnts, self.dfs, self.actions, self.action_params, self.cache ]
         attributes = [
             self.path, self.name, self.max_row_per_piece, self.row_cnt, 
             self.seq_col,
@@ -588,13 +598,13 @@ class BaseFEFS():
 
     #     piece = self.pieces[idx]
     #     fullname = self.__compose_piece_fullname(piece)
-    #     # df = df.sort_values(by=self.time_col).reset_index(drop=True)
+    #     # df = df.sort_values(by=self.seq_col).reset_index(drop=True)
     #     df = df.sort_values(by=self.seq_col).reset_index(drop=True)
 
     #     self.dfs[idx] = df
     #     # dtf = self.datetime_format
     #     df2 = dc(df)
-    #     # df2[self.time_col] = df2[self.time_col].apply(lambda x: x.strftime(dtf))
+    #     # df2[self.seq_col] = df2[self.seq_col].apply(lambda x: x.strftime(dtf))
     #     df2.to_csv(fullname, index=False)
     #     del df2; df2 = None
     #     return
@@ -615,12 +625,12 @@ class BaseFEFS():
 
     #     piece = self.pieces[idx]
     #     fullname = self.__compose_piece_fullname(piece)
-    #     # df = pd.read_csv(fullname,dtype={self.time_col:str})
+    #     # df = pd.read_csv(fullname,dtype={self.seq_col:str})
     #     # df = pd.read_csv(fullname,dtype={self.seq_col:str})
     #     df = pd.read_csv(fullname)
 
     #     # dtf = self.datetime_format
-    #     # df[self.time_col] = df[self.time_col].apply(lambda x: dt.strptime(x,dtf))
+    #     # df[self.seq_col] = df[self.seq_col].apply(lambda x: dt.strptime(x,dtf))
     #     return df
 
     
@@ -639,14 +649,14 @@ class BaseFEFS():
         fullname = self.__compose_piece_fullname(piece)
         if type_ == "csv":
 
-            if self.seq_dtype is None:
+            if self.seq_read_dtype is None:
                 df = pd.read_csv(fullname)
             else:
-                df = pd.read_csv(fullname, dtype={self.seq_col:self.seq_dtype})
+                df = pd.read_csv(fullname, dtype={self.seq_col:self.seq_read_dtype})
 
             # dtf = self.datetime_format
             if self.seq_trans_method is not None:
-                assert self.seq_inv_trans_method is None
+                assert self.seq_inv_trans_method is not None
                 df[self.seq_col] = df[self.seq_col].apply(lambda x: self.seq_trans_method(x))                
 
             df = df.sort_values(by=self.seq_col).reset_index(drop=True)
@@ -655,13 +665,7 @@ class BaseFEFS():
             return self.dfs[idx]
         
         elif type_ == self.__class__.__name__:
-            # elif self.types[idx] == "tsfefs":
-            
-            # tsfefs = TSFEFS()
-            # fullname += '.' + TSFEFS.extension
-            # tsfefs.read(fullname)
-            # return tsfefs
-            
+                        
             fefs = self.__class__()
             fullname += '.' + self.__class__.extension
             fefs.read(fullname)
@@ -696,14 +700,13 @@ class BaseFEFS():
         
         if type_ == "csv":
             
-            # df = df.sort_values(by=self.time_col).reset_index(drop=True)
             df = df.sort_values(by=self.seq_col).reset_index(drop=True)
             
             self.dfs[idx] = df
             # dtf = self.datetime_format
             df2 = dc(df)
             if self.seq_inv_trans_method is not None:
-                assert self.seq_trans_method is None
+                assert self.seq_trans_method is not None
                 df2[self.seq_col] = df2[self.seq_col].apply(lambda x: self.seq_inv_trans_method(x))                
             
             df2.to_csv(fullname, index=False)
@@ -1049,10 +1052,9 @@ class BaseFEFS():
         fr, to = None, None
         if len_ > 0:
             if type_ == "csv":
-                S_ = df[self.time_col]
+                S_ = df[self.seq_col]
             elif type_ == self.__class__.__name__:
                 # elif type_ == "tsfefs":
-                # S_ = df.__get_times()
                 S_ = df.__get_seqs()
             else:
                 print("Type", type_, "not supported")
@@ -1493,7 +1495,7 @@ class BaseFEFS():
                         
         df = self.export_dataframe()
         if self.seq_inv_trans_method is not None:
-            assert self.seq_trans_method is None
+            assert self.seq_trans_method is not None
             df[self.seq_col] = df[self.seq_col].apply(lambda x: self.seq_inv_trans_method(x))
         df.to_csv(dstfile,index=False)
         return
@@ -1582,14 +1584,14 @@ class BaseFEFS():
         assert self.__class__ != BaseFEFS
         
                         
-        if self.seq_dtype is None:
+        if self.seq_read_dtype is None:
             df = pd.read_csv(srcfile)
         else:
-            df = pd.read_csv(srcfile, dtype={self.seq_col:self.seq_dtype})
+            df = pd.read_csv(srcfile, dtype={self.seq_col:self.seq_read_dtype})
 
         assert self.seq_col in df.columns
         if self.seq_trans_method is not None:
-            assert self.seq_inv_trans_method is None
+            assert self.seq_inv_trans_method is not None
             df[self.seq_col] = df[self.seq_col].apply(lambda x: self.seq_trans_method(x))
         self.import_dataframe(df)
         return
@@ -2088,7 +2090,7 @@ class BaseFEFS():
                 self.dfs[_order] = df
             dfs.append(df[colnames])
             # indices += list(np.array(df.index) + cum_row_cnt)
-            indices += list(np.array(TSFEFS.get_index(df)) + cum_row_cnt)
+            indices += list(np.array(self.__class__.get_index(df)) + cum_row_cnt)
             cum_row_cnt += self.row_cnts[_order]
         
         if len(dfs) == 0:
@@ -2111,13 +2113,13 @@ class BaseFEFS():
         """
         Accetpable queries:
         Single:
-         - int: tsfefs[33]
-         - str: tsfefs["age"]
+         - int: fefs[33]
+         - str: fefs["age"]
         Multiple:
-         - slice of ints: tsfefs[20:], tsfefs[20:50], tsfefs[::2], ...
-         - list of ints: tsfefs[[1,2,5,10]]
-         - list of strs: tsfefs[["time","purchased","item","price"]]
-         - list of bools: tsfefs[[True,False,True,...]] # must have length == row_cnt
+         - slice of ints: fefs[20:], fefs[20:50], fefs[::2], ...
+         - list of ints: fefs[[1,2,5,10]]
+         - list of strs: fefs[["time","purchased","item","price"]]
+         - list of bools: fefs[[True,False,True,...]] # must have length == row_cnt
         """        
         if isinstance(key,str_types):
             return self.__getitem__using_str(key)
@@ -2204,7 +2206,6 @@ class BaseFEFS():
                 df.iloc[idx] = value
                 self.dfs[_order] = df
             elif type_ == self.__class__.__name__:
-                # elif type_ == "tsfefs":
                 fefs = df
                 fefs[idx] = value
                 self.dfs[_order] = fefs
@@ -2301,7 +2302,6 @@ class BaseFEFS():
                 if type_ == "csv":
                     df_ = df.iloc[idx:(idx+1)]
                 elif type_ == self.__class__.__name__:
-                    # elif type_ == "tsfefs":
                     fefs = df
                     df_ = fefs[idx:(idx+1)]
                 else:
@@ -2318,7 +2318,6 @@ class BaseFEFS():
                 df.iloc[[idx]] = value[ cnt : cnt_new ]
                 self.dfs[_order] = df
             elif type_ == self.__class__.__name__:
-                # elif type_ == "tsfefs":
                 fefs[[idx]] = value[ cnt : cnt_new ]
                 self.dfs[_order] = fefs
             else:
@@ -2386,13 +2385,13 @@ class BaseFEFS():
         """
         Accetpable assignments:
         Single:
-         - int: tsfefs[33] = value # row index 33 assignment
-         - str: tsfefs["age"] = value
+         - int: fefs[33] = value # row index 33 assignment
+         - str: fefs["age"] = value
         Multiple:
-         - slice of ints: tsfefs[20:] = value, tsfefs[20:50] = value, tsfefs[::2] = value, ...
-         - list of ints: tsfefs[[1,2,5,10]] = value
-         - list of strs: tsfefs[["time","purchased","item","price"]] = value
-         - list of bools: tsfefs[[True,False,True,...]] = value # must have length == row_cnt
+         - slice of ints: fefs[20:] = value, fefs[20:50] = value, fefs[::2] = value, ...
+         - list of ints: fefs[[1,2,5,10]] = value
+         - list of strs: fefs[["time","purchased","item","price"]] = value
+         - list of bools: fefs[[True,False,True,...]] = value # must have length == row_cnt
         """        
         if isinstance(key,str_types):
             self.__setitem__using_str(key, value)
@@ -2473,12 +2472,10 @@ class BaseFEFS():
             df = df[B].reset_index(drop=True)
             len_ = len(df)
         elif type_ == self.__class__.__name__:
-            # elif type_ == "tsfefs":
             fefs = df
             del fefs[idx]
             fefs.take_actions(max_level=4)
-            # len_ = tsfefs.row_cnt  # since action is taken, this tsfefs' row_cnt is updated.
-            len_ = len(fefs)  # since action is taken, this tsfefs' row_cnt is updated.
+            len_ = len(fefs)  # since action is taken, this fefs' row_cnt is updated.
             df = fefs
         else:
             print("Type", type_, "not supported")
@@ -2508,7 +2505,7 @@ class BaseFEFS():
 
 
         self.__str_check(colname)
-        assert colname != self.time_col
+        assert colname != self.seq_col
 
         orders = self.__no_overlapping_seq_range()
         for _order in orders:
@@ -2550,11 +2547,10 @@ class BaseFEFS():
                 df = df[B].reset_index(drop=True)
                 len_ = len(df)
             elif type_ == self.__class__.__name__:
-                # elif type_ == "tsfefs":
                 fefs = df
                 del fefs[adjusted_indices]
                 fefs.take_actions(max_level=4)
-                len_ = fefs.row_cnt  # since action is taken, this tsfefs' row_cnt is updated.
+                len_ = fefs.row_cnt  # since action is taken, this fefs' row_cnt is updated.
                 df = fefs
             else:
                 print("Type", type_, "not supported")
@@ -2615,7 +2611,6 @@ class BaseFEFS():
                 for col in colnames:
                     del df[col]
             elif type_ == self.__class__.__name__:
-                # elif type_ == "tsfefs":
                 del df[colnames]
             else:
                 print("Type", type_, "not supported")
@@ -2641,13 +2636,13 @@ class BaseFEFS():
         """
         Accetpable delete:
         Single:
-         - int: del tsfefs[33]
-         - str: del tsfefs["age"]
+         - int: del fefs[33]
+         - str: del fefs["age"]
         Multiple:
-         - slice of ints: del tsfefs[20:], del tsfefs[20:50], del tsfefs[::2], ...
-         - list of ints: del tsfefs[[1,2,5,10]]
-         - list of strs: del tsfefs[["time","purchased","item","price"]]
-         - list of bools: del tsfefs[[True,False,True,...]] # must have length == row_cnt
+         - slice of ints: del fefs[20:], del fefs[20:50], del fefs[::2], ...
+         - list of ints: del fefs[[1,2,5,10]]
+         - list of strs: del fefs[["time","purchased","item","price"]]
+         - list of bools: del fefs[[True,False,True,...]] # must have length == row_cnt
         """        
         if isinstance(key,str_types):
             self.__delitem__using_str(key)
@@ -2708,6 +2703,9 @@ class BaseFEFS():
         have to be an implemented class.
         """
         assert self.__class__ != BaseFEFS
+        
+        if self.seq_type is not None:
+            return self.seq_type
 
                 
         for df in self.dfs:
@@ -2719,8 +2717,14 @@ class BaseFEFS():
         else:
             S = df[self.seq_col]
             
-        val = list(S)[0]
-        return type(val)
+        s = list(S)[0]
+        # Elements in df[seq_col] have to be in the defined types
+        type_tups = [ int_types, float_types, str_types, bool_types, arr_types, dt_types ]
+        for type_tup in type_tups:
+            if isinstance(s, type_tup):
+                self.seq_type = type_tup
+                return type_tup
+        assert False
     
 
 
@@ -2728,13 +2732,13 @@ class BaseFEFS():
     """
     The operators will be about the comparison of timestamps
     Need to check:
-    1. tsfefs1 <op> tsfefs2
-    2. tsfefs <op> df
-    3. df <op> tsfefs
-    4. tsfefs <op> ts
-    5. tsfefs <op> pd.Series(tss)
+    1. fefs1 <op> fefs2
+    2. fefs <op> df
+    3. df <op> fefs
+    4. fefs <op> ts
+    5. fefs <op> pd.Series(tss)
     
-    The codes are strictly prohibited from using tsfefs[time_col],
+    The codes are strictly prohibited from using fefs[seq_col],
     since such operation will affect the cache.
     """
     # def __read_time(self, idx):
@@ -2754,50 +2758,35 @@ class BaseFEFS():
         if type_ == "csv":
 
             
-            # time_col = self.time_col
             # dtf = self.datetime_format
             seq_col = self.seq_col
 
-            if seq_col is None:
+            if self.seq_read_dtype is None:
                 df = pd.read_csv(fullname, usecols=[seq_col])
             else:
-                df = pd.read_csv(fullname, usecols=[seq_col], dtype={seq_col:self.seq_dtype})
+                df = pd.read_csv(fullname, usecols=[seq_col], dtype={seq_col:self.seq_read_dtype})
+
+            if self.seq_trans_method is not None:
+                assert self.seq_inv_trans_method is not None
+                df[seq_col] = df[seq_col].apply(lambda x: self.seq_trans_method(x))
 
             df = df.sort_values(by=seq_col).reset_index(drop=True)
             S = df[seq_col]
         
         elif type_ == self.__class__.__name__:
-            # elif type_ == "tsfefs":
 
             fefs = self.__class__()
             fefs.read(fullname)
             S = fefs.__get_seqs()
         
         else:
-            print("File type \"tsfefs\" not yet implemented")
+            print("File type", self.__class__, "not supported")
             assert False
             
         return S
     
-
-    # def __get_time(self, idx):
-
-    #     df = self.dfs[idx]
-    #     type_ = self.types[idx]
-    #     if df is None:
-    #         S = self.__read_time(idx)
-    #         return S
-
-    #     if type_ == "csv":
-    #         S = df[self.time_col]
-    #     elif type_ == "tsfefs":
-    #         tsfefs = df
-    #         S = tsfefs.__get_times()
-    #     else:
-    #         assert False
-
-    #     return S
     
+
     def __get_seq(self, idx):
 
         """ 
@@ -2811,14 +2800,16 @@ class BaseFEFS():
         type_ = self.types[idx]
         if df is None:
             S = self.__read_seq(idx)
+            # print("__read_seq(%i):, "%idx, "types of S:", set([ type(s_) for s_ in S ]))
             return S
 
         if type_ == "csv":
             S = df[self.seq_col]
+            # print("dfs[%i], "%idx, "types of S:", set([ type(s_) for s_ in S ]))   
         elif type_ == self.__class__.__name__:
-            # elif type_ == "tsfefs":
             fefs = df
             S = fefs.__get_seqs()
+            # print("dfs[%i].__get_seqs(), "%idx, "types of S:", set([ type(s_) for s_ in S ]))   
         else:
             assert False
             
@@ -2920,13 +2911,10 @@ class BaseFEFS():
         if isinstance(other, pd.Series):
             return self.__eq_series(other)
         elif isinstance(other, self.__class__):
-            # elif isinstance(other,TSFEFS):
-            # return self.__eq_tsfefs(other)
             return self.__eq_fefs(other)
         elif isinstance(other, pd.DataFrame):
             return self.__eq_df(other)
         elif isinstance(other, self.__get_seq_type()):
-            # return self.__eq_dt(other)
             return self.__eq_s(other)
         else:
             print("Types", type(other), "is not supported.")
@@ -3066,7 +3054,6 @@ class BaseFEFS():
 
 
         assert self.row_cnt == len(df)
-        # return self[self.time_col] < df[self.time_col]
         S = df[self.seq_col]
         return self.__lt_series(S)
     
@@ -3098,13 +3085,10 @@ class BaseFEFS():
         if isinstance(other, pd.Series):
             return self.__lt_series(other)
         elif isinstance(other, self.__class__):
-            # elif isinstance(other,TSFEFS):
             return self.__lt_fefs(other)
         elif isinstance(other, pd.DataFrame):
             return self.__lt_df(other)
         elif isinstance(other, self.__get_seq_type()):
-            # elif isinstance(other,dt):
-            # return self.__lt_dt(other)
             return self.__lt_s(other)
         else:
             print("Types", type(other), "is not supported.")
@@ -3171,7 +3155,7 @@ class BaseFEFS():
 
 
         S = self.__get_seqs()
-        B = S > ts
+        B = S > s
         return B
     
     
@@ -3183,6 +3167,9 @@ class BaseFEFS():
         """
         assert self.__class__ != BaseFEFS
 
+        # print("type(other):", type(other))
+        # print("self.__get_seq_type():", self.__get_seq_type())
+        # print()
 
         if isinstance(other, pd.Series):
             return self.__gt_series(other)
@@ -3258,7 +3245,7 @@ class BaseFEFS():
 
 
         S = self.__get_seqs()
-        B = S <= ts
+        B = S <= s
         return B
     
 
@@ -3314,8 +3301,8 @@ class BaseFEFS():
         assert self.__class__ != BaseFEFS
 
 
-        assert self.seq_col == tsfefs.seq_col
-        assert self.row_cnt == tsfefs.row_cnt
+        assert self.seq_col == fefs.seq_col
+        assert self.row_cnt == fefs.row_cnt
         S = fefs.__get_seqs()
         return self.__ge_series(S)
     
@@ -3345,7 +3332,7 @@ class BaseFEFS():
 
 
         S = self.__get_seqs()
-        B = S >= ts
+        B = S >= s
         return B
 
     
@@ -3385,7 +3372,6 @@ class BaseFEFS():
 
     #####################################################################################################################
     ################################################# Overriding +: BEG #################################################
-    # def __add_tsfefs(self, tsfefs):
     def __add_fefs(self, fefs):
 
         """ 
@@ -3395,28 +3381,27 @@ class BaseFEFS():
         assert self.__class__ != BaseFEFS
 
 
-        assert self.seq_col == tsfefs.seq_col
+        assert self.seq_col == fefs.seq_col
         assert len(set(self.colnames) - set(fefs.colnames)) == 0
         assert len(set(fefs.colnames) - set(self.colnames)) == 0
         # assert self.datetime_format == tsfefs.datetime_format
         
         
-        # assert not tsfefs.has_pending_actions()
+        # assert not fefs.has_pending_actions()
         
         assert fefs.has_valid_status() # no None in the lists
         assert not fefs.conflict_exist()
       
         
-        # the added tsfefs must be under the current path
+        # the added fefs must be under the current path
         """
-        tsfefs = dc(tsfefs)
-        tsfefs.path = self.__compose_fullpath()
+        fefs = dc(fefs)
+        fefs.path = self.__compose_fullpath()
         """
         fefs = fefs.clone(self.__compose_fullpath(),fefs.name)
         if fefs.name in self.pieces:
             fefs.name = self.gen_valid_piece(prefix=fefs.name+"_", suffix="")
         self.pieces += [fefs.name]
-        # self.types += ["tsfefs"]
         self.types += [ self.__class__.__name__ ]
         
         self.frs += [None]
@@ -3462,15 +3447,12 @@ class BaseFEFS():
         
         self.pieces += [piece]
         self.types += ["csv"]
-        # self.frs += [tsfefs.fr]
-        # self.tos += [tsfefs.to]
-        # self.row_cnts += [tsfefs.row_cnt]
         self.frs += [None]
         self.tos += [None]
         self.row_cnts += [None]
         self.actions += ["update"]
         self.action_params += [None]
-        self.dfs += [df] # the elements can be df or TSFEFS
+        self.dfs += [df] # the elements can be df or classes of BaseFEFS
         
         self.include_idx(len(self.pieces)-1) # len(self.pieces)-1: the new highest array idx
             
@@ -3519,16 +3501,16 @@ class BaseFEFS():
     # def merge(left_obj, right_obj, path="", name="", on="", target=None):
     #     """
     #     1. For class merge, requiring a new path and a new name.
-    #     2. The left_obj has to be TSFEFS.
-    #     3. The right_obj can be (pd.DataFrame, TSFEFS)
+    #     2. The left_obj has to be classes of BaseFEFS.
+    #     3. The right_obj can be (pd.DataFrame, classes of BaseFEFS)
     #     4. Target is the targeted columns for the right_obj.
     #     """
     #     assert (path is not None) and (name is not None) and (on is not None)
     #     assert "" not in [path, name, on]
-    #     assert isinstance(left_obj,TSFEFS)
-    #     assert isinstance(right_obj,(TSFEFS,pd.DataFrame))
-    #     tsfefs = left_obj.merge(right_obj, on, target=target, path=path, name=name)
-    #     return tsfefs
+    #     assert isinstance(left_obj,classes of BaseFEFS)
+    #     assert isinstance(right_obj,(classes of BaseFEFS,pd.DataFrame))
+    #     fefs = left_obj.merge(right_obj, on, target=target, path=path, name=name)
+    #     return fefs
 
     
     def __get_fefs_reference(self,path,name):
@@ -3672,16 +3654,15 @@ class BaseFEFS():
         if isinstance(right_obj, pd.DataFrame):
             right_cols = list(right_obj.columns)
         elif isinstance(right_obj, self.__class__):
-            # elif isinstance(right_obj, TSFEFS):
-            """ if TSFEFS, its time_col should be a dummy"""
+            """ if classes of BaseFEFS, its seq_col should be a dummy"""
             right_cols = dc(right_obj.colnames)
-            right_cols.remove(right_obj.time_col)
+            right_cols.remove(right_obj.seq_col)
         else:
             assert False
 
             
         # validity of on
-        assert len(set(on) - set(tsfefs.colnames)) == 0
+        assert len(set(on) - set(fefs.colnames)) == 0
         assert len(set(on) - set(right_cols)) == 0
         right_cols = list(set(right_cols) - set(on))
             
@@ -3705,7 +3686,6 @@ class BaseFEFS():
         if isinstance(right_obj, pd.DataFrame):
             fefs = fefs.merge_with_df(right_obj, on, target)
         elif isinstance(right_obj, self.__class__):
-            # elif isinstance(right_obj, TSFEFS):
             fefs = fefs.merge_with_fefs(right_obj, on, target)
         else:
             assert False
@@ -3888,10 +3868,10 @@ class BaseFEFS():
         self = self.load_meta(dict_meta)
         
         full_index_df_name = '/'.join([fullname, self.__class__.index_df_name])
-        if self.seq_dtype is None:
+        if self.seq_read_dtype is None:
             df_index = pd.read_csv(full_index_df_name)
         else:
-            df_index = pd.read_csv(full_index_df_name, dtype={"fr":self.seq_dtype, "to":self.seq_dtype})  
+            df_index = pd.read_csv(full_index_df_name, dtype={"fr":self.seq_read_dtype, "to":self.seq_read_dtype})  
         self = self.load_index_df(df_index)
         
         self.actions = [ "" for i in range(len(df_index)) ]
@@ -3913,7 +3893,7 @@ class BaseFEFS():
         if fullname is None:
             fullname = self.__compose_fullpath()
         else:
-            self.path, self.name = self.__decompose_fullpath(fullname) # just to ensure the .tsfefs extension exits
+            self.path, self.name = self.__decompose_fullpath(fullname) # just to ensure the .fefs extension exits
             
         if not os.path.isdir(fullname):
             os.mkdir(fullname)
@@ -3921,8 +3901,8 @@ class BaseFEFS():
         # Consistency of actions check
         # should have all actions cleared
         assert not self.has_pending_actions()
-        # action_levels = [ TSFEFS.action_domain.index(act) for act in self.actions ]
-        # assert all(np.array(action_levels) == TSFEFS.action_domain.index(""))
+        # action_levels = [ FEFS.action_domain.index(act) for act in self.actions ]
+        # assert all(np.array(action_levels) == FEFS.action_domain.index(""))
 
         
         dict_meta = self.dump_meta()
