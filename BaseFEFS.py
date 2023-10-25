@@ -99,7 +99,7 @@ class BaseFEFS():
         """
         self.actions = None
         self.action_params = None
-        self.dfs = None # the elements can be df or TSFEFS
+        self.dfs = None # the elements can be df or FEFS
         
         # Cache section
         self.cache = None
@@ -346,11 +346,7 @@ class BaseFEFS():
         df_index = df_index.sort_values(by="fr")
         orders = list(df_index.index)
         df_index = df_index.reset_index(drop=True)
-        
-        # dtf = self.datetime_format
-        # df_index["fr"] = df_index["fr"].apply(lambda x: x.strftime(dtf))
-        # df_index["to"] = df_index["to"].apply(lambda x: x.strftime(dtf))
-        
+                
         if self.seq_inv_trans_method is not None:
             assert self.seq_trans_method is not None
             df_index["fr"] = df_index["fr"].apply(lambda x: self.seq_inv_trans_method(x))
@@ -583,56 +579,6 @@ class BaseFEFS():
             assert False
             
 
-    """
-    Seems like not being used.
-    """
-    # @deprecated
-    # def __to_csv(self,idx):
-
-    #     """ 
-    #     Base class should never be actually called,
-    #     have to be an implemented class.
-    #     """
-    #     assert self.__class__ != BaseFEFS
-
-
-    #     piece = self.pieces[idx]
-    #     fullname = self.__compose_piece_fullname(piece)
-    #     # df = df.sort_values(by=self.seq_col).reset_index(drop=True)
-    #     df = df.sort_values(by=self.seq_col).reset_index(drop=True)
-
-    #     self.dfs[idx] = df
-    #     # dtf = self.datetime_format
-    #     df2 = dc(df)
-    #     # df2[self.seq_col] = df2[self.seq_col].apply(lambda x: x.strftime(dtf))
-    #     df2.to_csv(fullname, index=False)
-    #     del df2; df2 = None
-    #     return
-
-    
-    """
-    Seems like not being used.
-    """
-    # @deprecated
-    # def __read_csv(self,idx):
-
-    #     """ 
-    #     Base class should never be actually called,
-    #     have to be an implemented class.
-    #     """
-    #     assert self.__class__ != BaseFEFS
-
-
-    #     piece = self.pieces[idx]
-    #     fullname = self.__compose_piece_fullname(piece)
-    #     # df = pd.read_csv(fullname,dtype={self.seq_col:str})
-    #     # df = pd.read_csv(fullname,dtype={self.seq_col:str})
-    #     df = pd.read_csv(fullname)
-
-    #     # dtf = self.datetime_format
-    #     # df[self.seq_col] = df[self.seq_col].apply(lambda x: dt.strptime(x,dtf))
-    #     return df
-
     
 
     def __read_piece(self, idx):
@@ -713,11 +659,9 @@ class BaseFEFS():
             del df2; df2 = None
             
         elif type_ == self.__class__.__name__:
-            # elif type_ == "tsfefs":
             
             fefs = df
             fefs.take_actions(max_level=4) #??? or max_level=3?
-            # fullname += '.' + TSFEFS.extension
             fullname += '.' + self.__class__.extension
             fefs.write(fullname) # by calling write, this tsfefs object will have its path and name reset.
             
@@ -844,7 +788,7 @@ class BaseFEFS():
                 
     """
     Called by:
-      - __add_tsfefs
+      - __add_fefs
       - __add_df
     """
     def include_idx(self, idx):
@@ -984,8 +928,8 @@ class BaseFEFS():
         assert self.__class__ != BaseFEFS
         
         
-        # action_levels = [ TSFEFS.action_domain.index(act) for act in self.actions ]
-        # assert np.all(np.array(action_levels) == TSFEFS.action_domain.index(""))
+        # action_levels = [ BaseFEFS.action_domain.index(act) for act in self.actions ]
+        # assert np.all(np.array(action_levels) == BaseFEFS.action_domain.index(""))
         assert not self.has_pending_actions()
         
 
@@ -1042,7 +986,6 @@ class BaseFEFS():
         if type_ == "csv":
             len_ = len(df)
         elif type_ == self.__class__.__name__:
-            # elif type_ == "tsfefs":
             fefs = df
             len_ = fefs.row_cnt
         else:
@@ -1054,7 +997,6 @@ class BaseFEFS():
             if type_ == "csv":
                 S_ = df[self.seq_col]
             elif type_ == self.__class__.__name__:
-                # elif type_ == "tsfefs":
                 S_ = df.__get_seqs()
             else:
                 print("Type", type_, "not supported")
@@ -1114,7 +1056,6 @@ class BaseFEFS():
             if os.path.isfile(fullname):
                 os.remove(fullname)
         elif type_ == self.__class__.__name__:
-            # elif type_ == "tsfefs":
             fefs = df
             fefs.remove()
             
@@ -1163,7 +1104,6 @@ class BaseFEFS():
         so let's have all the splits be csvs.
         """
         if type_ == self.__class__.__name__:
-            # if type_ == "tsfefs":
             df = df.export_dataframe()
         df = df.sort_values(by=self.seq_col).reset_index(drop=True)
 
@@ -1186,8 +1126,6 @@ class BaseFEFS():
             self.dfs[idx] = df
 
             
-        # print("__action_split, idx:", idx)
-        # print("__action_split:", [ len(df_) for df_ in dfs ])
         df = dfs[0]
         self.dfs[idx] = df
         """ can leave fr and to updates when "update" """
@@ -1217,7 +1155,7 @@ class BaseFEFS():
                 
                 self.split_idx(idx) # this will the new indices next to the location of idx in cache
 
-        else: # elif self.types[idx] == "tsfefs"
+        else: # elif self.types[idx] == "fefs"
             print("File type", type_, "not yet implemented")
             assert False
         return
@@ -1277,14 +1215,11 @@ class BaseFEFS():
         if  type_ == "csv"  and  type_tobemerged == "csv":
             df = pd.concat([df,df_tobemerged]).reset_index(drop=True)
         elif  type_ == "csv"  and  type_tobemerged == self.__class__.__name__:
-            # elif  type_ == "csv"  and  type_tobemerged == "tsfefs":
             df_tobemerged = df_tobemerged.export_dataframe()
             df = pd.concat([df,df_tobemerged]).reset_index(drop=True)
         elif  type_ == self.__class__.__name__  and  type_tobemerged == "csv":
-            # elif  type_ == "tsfefs"  and  type_tobemerged == "csv":
             df += df_tobemerged
         elif  type_ == "tsfefs"  and  type_tobemerged == self.__class__.__name__:
-            # elif  type_ == "tsfefs"  and  type_tobemerged == "tsfefs":
             df += df_tobemerged            
         else:
             print("Type",  type_tobemerged, "not supported.")
@@ -1367,19 +1302,13 @@ class BaseFEFS():
         while current_level <= max_level:
             self.vprint("current_level:", current_level)
             
-            # action_levels = [ TSFEFS.action_domain.index(act) for act in self.actions ]
             action_levels = [ self.__class__.action_domain.index(act) for act in self.actions ]
             
             action_indices = [ idx for idx in reversed(range(len(action_levels))) if action_levels[idx] == current_level ]
-            # print("current_level:", current_level, "; max_level:", max_level)
-            # print("self.verbose:", self.verbose)
             if len(action_indices) == 0:
-                # print("take_actions", 1, "; current_level:", current_level)
                 current_level += 1
             else: # len(action_indices) > 0:
-                # print("take_actions", 2, "; current_level:", current_level, "; len(action_indices):", len(action_indices))
                 for idx in action_indices:
-                    # print("idx:", idx)
                     self.__map_action_to_func(current_level)(idx)
                 current_level = 0
         return
@@ -1394,8 +1323,7 @@ class BaseFEFS():
         assert self.__class__ != BaseFEFS
         
                 
-        # action_levels = [ TSFEFS.action_domain.index(act) for act in self.actions ]
-        # b = any(np.array(action_levels) != TSFEFS.action_domain.index(""))
+        # b = any(np.array(action_levels) != BaseFEFS.action_domain.index(""))
         action_levels = [ self.__class__.action_domain.index(act) for act in self.actions ]
         b = any(np.array(action_levels) != self.__class__.action_domain.index(""))
         
@@ -1466,11 +1394,8 @@ class BaseFEFS():
 
             type_ = self.types[idx]
             if type_ == "csv":
-                # dfs.append(self.dfs[idx])
                 dfs.append(df)
             elif type_ == self.__class__.__name__:
-                # elif type_ == "tsfefs":
-                # dfs.append(self.dfs[idx].export_dataframe())
                 dfs.append(df.export_dataframe())
             else:
                 print("Type", type_, "not supported")
@@ -1532,17 +1457,23 @@ class BaseFEFS():
         """
         fullpath = self.__compose_fullpath()
         for idx in range(len(self.pieces)):
+            
             piece = self.pieces[idx]
             fr, to = self.frs[idx], self.tos[idx]
+                        
+            if self.seq_inv_trans_method is not None:
+                assert self.seq_trans_method is not None
+                fr = self.seq_inv_trans_method(fr)
+                to = self.seq_inv_trans_method(to)
             
-            src = "%s/%s"%(fullpath,piece)
-            
-            # fr = fr.strftime(self.datetime_format)
-            # to = to.strftime(self.datetime_format)
+            src = "%s/%s"%(fullpath,piece)            
             
             f = "%i. %s ~ %s.csv"%(idx,fr,to)
             dst = "%s/%s"%(dstfolder,f)
             os.system("cp \"%s\" \"%s\""%(src,dst))
+            
+            # print("From %s to %s"%(src,dst))
+            
         return
 
     
@@ -1743,10 +1674,8 @@ class BaseFEFS():
         assert isinstance(idx,int_types)
         
         while idx < 0:
-            # idx += self.row_cnt
             idx += len(self)
             
-        # if idx > self.row_cnt - 1:
         if idx > len(self) - 1:
             print("Index out of range")
             assert False
@@ -1767,13 +1696,11 @@ class BaseFEFS():
         
         assert isinstance(indices,list)
         assert all([ isinstance(idx,int_types) for idx in indices ])
-        # assert len(indices) <= self.row_cnt
         assert len(indices) <= len(self)
         
         for i in range(len(indices)):
             idx = indices[i]
             while idx < 0:
-                # idx += self.row_cnt
                 idx += len(self)
             indices[i] = idx
         
@@ -1781,7 +1708,6 @@ class BaseFEFS():
             print("Dupicated indices")
             assert False
                 
-        # assert all([ idx < self.row_cnt for idx in indices ])
         assert all([ idx < len(self) for idx in indices ])
         return indices
     
@@ -1833,7 +1759,6 @@ class BaseFEFS():
 
         assert isinstance(B,list)
         assert all([ isinstance(b,bool_types) for b in B ])
-        # assert len(B) == self.row_cnt # has to be equal length
         assert len(B) == len(self) # has to be equal length
         return
 
@@ -2031,7 +1956,6 @@ class BaseFEFS():
                 self.renew_idx(_order)
 
             elif type_ == self.__class__.__name__:
-                # elif type_ == "tsfefs":
                 fefs = df
                 df_ = fefs[adjusted_indices]
                 self.renew_idx(_order)
@@ -2089,7 +2013,6 @@ class BaseFEFS():
                 df = self.__read_piece(_order)
                 self.dfs[_order] = df
             dfs.append(df[colnames])
-            # indices += list(np.array(df.index) + cum_row_cnt)
             indices += list(np.array(self.__class__.get_index(df)) + cum_row_cnt)
             cum_row_cnt += self.row_cnts[_order]
         
@@ -2182,7 +2105,6 @@ class BaseFEFS():
                 
         idx = self.__idx_check(idx)
 
-        # if type(value) in [list, np.ndarray, pd.Series]:
         if isinstance(value, arr_types):
             arr = np.array(value)
             assert len(arr.shape) == 1 # like (4,)
@@ -2235,7 +2157,6 @@ class BaseFEFS():
         
         assert isinstance(colname,str_types)
             
-        # if type(value) in [list,np.ndarray,pd.Series]:
         if isinstance(value,(arr_types,range)):
             assert len(value) == self.row_cnt
             value = list(value)
@@ -2257,16 +2178,10 @@ class BaseFEFS():
 
             cnt_new = cnt + self.row_cnts[_order]
             df[colname] = value[ cnt : cnt_new ]
-            # print("type(df)")
-            # print(type(df))
-            # print("df[colname]")
-            # print(df[colname])
             cnt = cnt_new
             self.dfs[_order] = df
             self.actions[_order] = "update"
         
-        # print()
-        # print()
         if colname not in self.colnames:
             self.colnames += [colname]
         return
@@ -2800,16 +2715,13 @@ class BaseFEFS():
         type_ = self.types[idx]
         if df is None:
             S = self.__read_seq(idx)
-            # print("__read_seq(%i):, "%idx, "types of S:", set([ type(s_) for s_ in S ]))
             return S
 
         if type_ == "csv":
             S = df[self.seq_col]
-            # print("dfs[%i], "%idx, "types of S:", set([ type(s_) for s_ in S ]))   
         elif type_ == self.__class__.__name__:
             fefs = df
             S = fefs.__get_seqs()
-            # print("dfs[%i].__get_seqs(), "%idx, "types of S:", set([ type(s_) for s_ in S ]))   
         else:
             assert False
             
@@ -2848,7 +2760,6 @@ class BaseFEFS():
 
         seq_type_ = self.__get_seq_type()
         assert self.row_cnt == len(S)
-        # assert [ isinstance(ts,dt) for ts in S ]        
         assert [ isinstance(s,seq_type_) for s in S ]        
         S_ = self.__get_seqs()
         B = S_ == S
@@ -2885,7 +2796,6 @@ class BaseFEFS():
         return self.__eq_series(S)
 
     
-    # def __eq_dt(self, ts):
     def __eq_s(self, s):
 
         """ 
@@ -2934,7 +2844,6 @@ class BaseFEFS():
 
         seq_type_ = self.__get_seq_type()
         assert self.row_cnt == len(S)
-        # assert [ isinstance(ts,dt) for ts in S ]        
         assert [ isinstance(s,seq_type_) for s in S ]        
         S_ = self.__get_seqs()
         B = S_ != S
@@ -2971,7 +2880,6 @@ class BaseFEFS():
         return self.__ne_series(S)
 
     
-    # def __ne_dt(self, ts):
     def __ne_s(self, s):
 
         """ 
@@ -3001,8 +2909,6 @@ class BaseFEFS():
         elif isinstance(other, pd.DataFrame):
             return self.__ne_df(other)
         elif isinstance(other, self.__get_seq_type()):
-            # elif isinstance(other, dt):
-            # return self.__ne_dt(other)
             return self.__ne_s(other)
         else:
             print("Types", type(other), "is not supported.")
@@ -3022,7 +2928,6 @@ class BaseFEFS():
 
         seq_type_ = self.__get_seq_type()
         assert self.row_cnt == len(S)
-        # assert [ isinstance(ts,dt) for ts in S ]
         assert [ isinstance(s,seq_type_) for s in S ]
         S_ = self.__get_seqs()
         B = S_ < S
@@ -3058,7 +2963,6 @@ class BaseFEFS():
         return self.__lt_series(S)
     
 
-    # def __lt_dt(self, ts):
     def __lt_s(self, s):
         
         """ 
@@ -3108,7 +3012,6 @@ class BaseFEFS():
 
         seq_type_ = self.__get_seq_type()
         assert self.row_cnt == len(S)
-        # assert [ isinstance(ts,dt) for ts in S ]
         assert [ isinstance(s,seq_type_) for s in S ]
         S_ = self.__get_seqs()
         B = S_ > S
@@ -3144,7 +3047,6 @@ class BaseFEFS():
         return self.__gt_series(S)
 
     
-    # def __gt_dt(self, ts):
     def __gt_s(self, s):
 
         """ 
@@ -3167,9 +3069,6 @@ class BaseFEFS():
         """
         assert self.__class__ != BaseFEFS
 
-        # print("type(other):", type(other))
-        # print("self.__get_seq_type():", self.__get_seq_type())
-        # print()
 
         if isinstance(other, pd.Series):
             return self.__gt_series(other)
@@ -3178,8 +3077,6 @@ class BaseFEFS():
         elif isinstance(other, pd.DataFrame):
             return self.__gt_df(other)
         elif isinstance(other, self.__get_seq_type()):
-            # elif isinstance(other, dt):
-            # return self.__gt_dt(other)
             return self.__gt_s(other)        
         else:
             print("Types", type(other), "is not supported.")
@@ -3198,7 +3095,6 @@ class BaseFEFS():
 
         seq_type_ = self.__get_seq_type()
         assert self.row_cnt == len(S)
-        # assert [ isinstance(ts,dt) for ts in S ]
         assert [ isinstance(s,seq_type_) for s in S ]
         S_ = self.__get_seqs()
         B = S_ <= S
@@ -3234,7 +3130,6 @@ class BaseFEFS():
         return self.__le_series(S)
 
 
-    # def __le_dt(self, ts):
     def __le_s(self, s):
 
         """ 
@@ -3265,8 +3160,6 @@ class BaseFEFS():
         elif isinstance(other,pd.DataFrame):
             return self.__le_df(other)
         elif isinstance(other, self.__get_seq_type()):
-            # elif isinstance(other,dt):
-            # return self.__le_dt(other)
             return self.__le_s(other)
         else:
             print("Types", type(other), "is not supported.")
@@ -3285,7 +3178,6 @@ class BaseFEFS():
 
         seq_type_ = self.__get_seq_type()
         assert self.row_cnt == len(S)
-        # assert [ isinstance(ts,dt) for ts in S ]
         assert [ isinstance(s,seq_type_) for s in S ]
         S_ = self.__get_seqs()
         B = S_ >= S
@@ -3352,8 +3244,6 @@ class BaseFEFS():
         elif isinstance(other, pd.DataFrame):
             return self.__ge_df(other)
         elif isinstance(other, self.__get_seq_type()):
-            # elif isinstance(other, dt):
-            # return self.__ge_dt(other)
             return self.__ge_s(other)        
         else:
             print("Types", type(other), "is not supported.")
@@ -3743,8 +3633,6 @@ class BaseFEFS():
                 
                 if self.frs[idx+1] < self.tos[idx]:
 
-                    # print("Delay no more")
-                    
                     df0 = self.dfs[idx]
                     if df0 is None:
                         df0 = self.__read_piece(idx)
@@ -3802,9 +3690,6 @@ class BaseFEFS():
             pieces_len_adjustment = 0
             while idx < len(self.pieces):
                 
-                # print("2nd while loop, idx:", idx)
-                # print("2nd while loop, len(self.pieces):", len(self.pieces))
-
                 if self.row_cnts[idx] >= self.max_row_per_piece:
                     self.actions[idx] = "split"
                     pieces_len_adjustment += 1
@@ -3901,8 +3786,6 @@ class BaseFEFS():
         # Consistency of actions check
         # should have all actions cleared
         assert not self.has_pending_actions()
-        # action_levels = [ FEFS.action_domain.index(act) for act in self.actions ]
-        # assert all(np.array(action_levels) == FEFS.action_domain.index(""))
 
         
         dict_meta = self.dump_meta()
