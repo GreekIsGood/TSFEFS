@@ -4,7 +4,7 @@ from TSFEFS import *
 class SafeTSFEFS():
     
     """
-     - "time_col", "datetime_format" need to be specified.
+     - "seq_col", "datetime_format" need to be specified.
      - "colnames" will be determined automatically.
     """
     default_incomplete_dict_meta = {
@@ -14,8 +14,8 @@ class SafeTSFEFS():
     }
     
     
-    def print_tsfefs_info(self):
-        self.tsfefs.print_tsfefs_info()
+    def print_info(self):
+        self.tsfefs.print_info()
 
 
         
@@ -32,34 +32,34 @@ class SafeTSFEFS():
         self.import_tsfefs(tsfefs, path=path, name=name)
         return
     
-    def __init_dataframe(self, path, name, time_col, datetime_format, df):
+    def __init_dataframe(self, path, name, seq_col, datetime_format, df):
         self.tsfefs = None
-        self.import_dataframe(df, path=path, name=name, time_col=time_col, datetime_format=datetime_format)
+        self.import_dataframe(df, path=path, name=name, seq_col=seq_col, datetime_format=datetime_format)
         return
     
-    def __init_srcfile(self, path, name, time_col, datetime_format, srcfile):
+    def __init_srcfile(self, path, name, seq_col, datetime_format, srcfile):
         self.tsfefs = None
-        self.import_srcfile(srcfile, path=path, name=name, time_col=time_col, datetime_format=datetime_format)
+        self.import_srcfile(srcfile, path=path, name=name, seq_col=seq_col, datetime_format=datetime_format)
         return
     
-    def __init_srcfolder(self, path, name, time_col, datetime_format, srcfolder):
+    def __init_srcfolder(self, path, name, seq_col, datetime_format, srcfolder):
         self.tsfefs = None
-        self.import_srcfolder(srcfolder, path=path, name=name, time_col=time_col, datetime_format=datetime_format)
+        self.import_srcfolder(srcfolder, path=path, name=name, seq_col=seq_col, datetime_format=datetime_format)
         return
     
 
-    def __init__(self, path, name, tsfefs=None, time_col=None, datetime_format=None, df=None, srcpath=None):
+    def __init__(self, path, name, tsfefs=None, seq_col=None, datetime_format=None, df=None, srcpath=None):
         
         """
         1. There are 3 initialization types: i) tsfefs, ii) df, iii) srcpath.
         2. It can have all the values be None, then nothing will be initialized, and path and name will become meaningless.
         3. Otherwise it has to be either 1 of the init types.
-        4. If init is by df, (time_col, datetime_format, df) are bundled, and srcpath has to be None.
-        5. If init is by srcpath, (time_col, datetime_format, srcpath) are bundled, and df has to be None.
+        4. If init is by df, (seq_col, datetime_format, df) are bundled, and srcpath has to be None.
+        5. If init is by srcpath, (seq_col, datetime_format, srcpath) are bundled, and df has to be None.
         6. If init is either by df or by srcpath, tsfefs has to be None.
-        7. If init is by tsfefs, all (time_col, datetime_format, df, srcpath) have to be None.
+        7. If init is by tsfefs, all (seq_col, datetime_format, df, srcpath) have to be None.
         """
-        if (tsfefs is None) and (time_col is None) and (datetime_format is None) and (df is None) and (srcpath is None):
+        if (tsfefs is None) and (seq_col is None) and (datetime_format is None) and (df is None) and (srcpath is None):
             self.tsfefs = TSFEFS()
             return
         
@@ -68,7 +68,7 @@ class SafeTSFEFS():
         
         if tsfefs is not None:
             assert isinstance(tsfefs, TSFEFS)
-            assert time_col is None
+            assert seq_col is None
             assert datetime_format is None
             assert df is None
             assert srcpath is None
@@ -77,25 +77,25 @@ class SafeTSFEFS():
             return
             
         assert tsfefs is None
-        assert time_col is not None
-        assert isinstance(time_col, str)
+        assert seq_col is not None
+        assert isinstance(seq_col, str)
         assert datetime_format is not None
         assert isinstance(datetime_format, str)
         
         if df is not None:
             assert srcpath is None
             assert isinstance(df, pd.DataFrame)
-            assert time_col in df.columns
-            self.__init_dataframe(path, name, time_col, datetime_format, df)
+            assert seq_col in df.columns
+            self.__init_dataframe(path, name, seq_col, datetime_format, df)
             return
         
         assert srcpath is not None
         if os.path.isfile(srcpath):
-            self.__init_srcfile(path, name, time_col, datetime_format, srcpath)
+            self.__init_srcfile(path, name, seq_col, datetime_format, srcpath)
             return
         
         assert os.path.isdir(srcpath)
-        self.__init_srcfolder(path, name, time_col, datetime_format, srcpath)
+        self.__init_srcfolder(path, name, seq_col, datetime_format, srcpath)
         return
         
     
@@ -367,26 +367,26 @@ class SafeTSFEFS():
             if len(kwargs.keys()) == 2:
                 return (path, name, None, None)
             elif len(kwargs.keys()) == 4:
-                assert "time_col" in kwargs.keys()
+                assert "seq_col" in kwargs.keys()
                 assert "datetime_format" in kwargs.keys()
-                time_col = kwargs["time_col"]
+                seq_col = kwargs["seq_col"]
                 datetime_format = kwargs["datetime_format"]
-                return (path, name, time_col, datetime_format)
+                return (path, name, seq_col, datetime_format)
             else:
                 assert False
                 
         path = self.tsfefs.path
         name = self.tsfefs.name
-        time_col = self.tsfefs.time_col
+        seq_col = self.tsfefs.seq_col
         datetime_format = self.tsfefs.datetime_format
-        return (path, name, time_col, datetime_format)
+        return (path, name, seq_col, datetime_format)
     
     
     
     @classmethod
-    def __fill_dict_meta(cls, time_col, datetime_format, cols):
+    def __fill_dict_meta(cls, seq_col, datetime_format, cols):
         dict_meta = dc(SafeTSFEFS.default_incomplete_dict_meta)
-        dict_meta["time_col"] = time_col
+        dict_meta["seq_col"] = seq_col
         dict_meta["datetime_format"] = datetime_format
         dict_meta["colnames"] = cols
         return dict_meta
@@ -424,22 +424,22 @@ class SafeTSFEFS():
         if self.tsfefs is not None:
             self.tsfefs.remove()
 
-        path, name, time_col, datetime_format = self.__import_organize_kwargs(**kwargs)
+        path, name, seq_col, datetime_format = self.__import_organize_kwargs(**kwargs)
         
         
         df = dc(df)
-        if df[time_col].dtype == object:
+        if df[seq_col].dtype == object:
             
             try:
-                df[time_col] = df[time_col].apply(lambda x: dt.strptime(x, datetime_format))
+                df[seq_col] = df[seq_col].apply(lambda x: dt.strptime(x, datetime_format))
             except:
-                print("The datetime_format %s doesn't fit the time_col")
+                print("The datetime_format %s doesn't fit the seq_col")
                 
-        elif df[time_col].dtype in [ np.dtype('datetime64[ns]'), np.dtype('<M8[ns]') ]:
+        elif df[seq_col].dtype in [ np.dtype('datetime64[ns]'), np.dtype('<M8[ns]') ]:
             
-            T1 = df[time_col].apply(lambda x: x.strftime(datetime_format))
+            T1 = df[seq_col].apply(lambda x: x.strftime(datetime_format))
             T1 = T1.apply(lambda x: dt.strptime(x, datetime_format))
-            T2 = df[time_col]
+            T2 = df[seq_col]
             
             tsgap2secs = lambda x: x.days*24*60*60 + x.seconds + x.microseconds/float(1000000)
             ts_gap = T2 - T1
@@ -448,11 +448,11 @@ class SafeTSFEFS():
             assert ts_gap == 0
             
         else:
-            print("Probably the type in time_col is not supported")
+            print("Probably the type in seq_col is not supported")
             assert False
             
             
-        dict_meta = SafeTSFEFS.__fill_dict_meta(time_col, datetime_format, list(df.columns))
+        dict_meta = SafeTSFEFS.__fill_dict_meta(seq_col, datetime_format, list(df.columns))
 
         
         tsfefs = TSFEFS.create(dict_meta, name)
@@ -469,13 +469,13 @@ class SafeTSFEFS():
         if self.tsfefs is not None:
             self.tsfefs.remove()
 
-        path, name, time_col, datetime_format = self.__import_organize_kwargs(**kwargs)
+        path, name, seq_col, datetime_format = self.__import_organize_kwargs(**kwargs)
         
         
-        df = pd.read_csv(srcfile, dtype={time_col:str}, nrows=0)
-        assert time_col in df.columns
+        df = pd.read_csv(srcfile, dtype={seq_col:str}, nrows=0)
+        assert seq_col in df.columns
         
-        dict_meta = SafeTSFEFS.__fill_dict_meta(time_col, datetime_format, list(df.columns))
+        dict_meta = SafeTSFEFS.__fill_dict_meta(seq_col, datetime_format, list(df.columns))
         
         tsfefs = TSFEFS.create(dict_meta, name)
         tsfefs.path = path
@@ -492,7 +492,7 @@ class SafeTSFEFS():
         if self.tsfefs is not None:
             self.tsfefs.remove()
 
-        path, name, time_col, datetime_format = self.__import_organize_kwargs(**kwargs)
+        path, name, seq_col, datetime_format = self.__import_organize_kwargs(**kwargs)
                 
 
         """
@@ -505,10 +505,10 @@ class SafeTSFEFS():
         files = [ f for f in files if not os.path.isdir(f) ]
         assert len(files) > 0        
         for f in files:
-            df = pd.read_csv(f, dtype={time_col:str}, nrows=0)
+            df = pd.read_csv(f, dtype={seq_col:str}, nrows=0)
             break
             
-        dict_meta = SafeTSFEFS.__fill_dict_meta(time_col, datetime_format, list(df.columns))
+        dict_meta = SafeTSFEFS.__fill_dict_meta(seq_col, datetime_format, list(df.columns))
         
         tsfefs = TSFEFS.create(dict_meta, name)
         tsfefs.path = path
