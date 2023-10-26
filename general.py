@@ -8,6 +8,7 @@ import string
 
 from copy import deepcopy as dc
 import os
+import sys
 
 
 int_types = (int,np.integer)
@@ -20,3 +21,6 @@ _df_ = pd.DataFrame({"t":["2020-01-01 00:00:00.0000"]})
 _df_["t"] = _df_["t"].apply(lambda x: dt.strptime(x,"%Y-%m-%d %H:%M:%S.%f"))
 _s_ = list(_df_["t"])[0]
 dt_types = (dt,type(_s_))
+
+
+
