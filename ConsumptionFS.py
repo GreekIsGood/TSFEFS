@@ -13,20 +13,32 @@ class ConsumptionFS(BaseFEFS):
     ##########################################################################################################
     ########################################## Class Variables: BEG ##########################################
     extension = "consumpfs"
+    
+    """
+    What's missing:
+     - "seq_col".
+     - "colnames" will be determined automatically.
+     - "ftable_feats"
+     - "ftable_info"
+    """
+    default_incomplete_dict_meta = {
+        "piece_name_len": 8, 
+        "max_row_per_piece": 20000,
+        "cache_config":{"rows_in_cache":None,"len_of_cache":3}
+    }
     ########################################## Class Variables: END ##########################################
     ##########################################################################################################
-
-
-
+    
+    
+    
+    
+    
     def print_info(self):
         super().print_info()
         print("Feat tables included:", self.ftables)
         print()
-        for ftable in self.ftables:
-            # print each ftable's features
-            print("%s's features:"%ftable, [ fdecode(feat) for feat in self.ftable_feats[ftable] ])
-            print("%s's info:"%ftable, self.ftable_info[ftable])
-            print()
+        print("Features:", self.ftable_feats)
+        print("Info:", self.ftable_info)
         return
 
 
@@ -42,11 +54,12 @@ class ConsumptionFS(BaseFEFS):
         
         
 
-    """ Use BaseFEFS's """
-    """ Only need to modify load_meta """
-    # @classmethod
-    # def create(cls, dict_meta, name, path=None):
-    #     pass
+    @classmethod
+    def create(cls, dict_meta, name, path=None):
+        consumpfs = super().create(dict_meta, name, path=path)
+        consumpfs.ftable_feats = dict_meta["ftable_feats"]
+        consumpfs.ftable_info = dict_meta["ftable_info"]
+        return consumpfs
     
 
 
@@ -58,8 +71,8 @@ class ConsumptionFS(BaseFEFS):
     
     def load_meta(self,dict_meta):
         self = super().load_meta(dict_meta)
-        self.ftables = dict_meta["ftables"]
-        self.ftable_feats = self.parse_featnames() # take in self.ftables and self.colnames, not in dict_meta.
+        self.ftable_feats = dict_meta["ftable_feats"]
+        # self.ftable_feats = self.parse_featnames() # take in self.ftables and self.colnames, not in dict_meta.
         self.ftable_info = dict_meta["ftable_info"]
         return self
 
@@ -67,7 +80,7 @@ class ConsumptionFS(BaseFEFS):
 
     def dump_meta(self):
         dict_meta = super().dump_meta()
-        dict_meta["ftables"] = self.ftables
+        dict_meta["ftable_feats"] = self.ftable_feats
         dict_meta["ftable_info"] = self.ftable_info
         return dict_meta
 
@@ -601,6 +614,13 @@ class ConsumptionFS(BaseFEFS):
  
 
 
+    #####################################################################################################################
+    ############################################## Publish __get_seqs: BEG ##############################################
+    def get_seqs(self):
+        return self.__get_seqs()
+        
+    ############################################## Publish __get_seqs: END ##############################################
+    #####################################################################################################################
 
 
 
@@ -840,9 +860,50 @@ class ConsumptionFS(BaseFEFS):
     ############################################## Consume functions: END ##############################################
     ####################################################################################################################
 
-
-
-    
     
 
+
+
+    ####################################################################################################################
+    ################################################ Used by SERVE: BEG ################################################
+    @classmethod
+    def __fill_dict_meta(cls, seq_col, cols):
+        dict_meta = dc(ConsumptionFS.default_incomplete_dict_meta)
+        dict_meta["seq_col"] = seq_col
+        dict_meta["colnames"] = cols
+        """ should have ftable_feats filled automatically """
+        dict_meta["ftable_feats"] = {}
+        """ should have ftable_info filled automatically """
+        dict_meta["ftable_info"] = {}
+        return dict_meta
+
+
+
+    @classmethod
+    def get_consumpfs_for_serve_store(cls, path, name, seq_col, df):
+
+        fullpath = "%s/%s.%s"%(path, name, ConsumptionFS.extension)        
+        try:
+
+            """
+            may not exist yet
+            """
+            consumpfs = ConsumptionFS()
+            consumpfs.read(fullpath)
+        except:
+            dict_meta = ConsumptionFS.__fill_dict_meta(seq_col, list(df.columns))
+            consumpfs = ConsumptionFS.create(dict_meta, name)
+            consumpfs.path = path
+            
+        return consumpfs
+
+            
+    def update_consumpfs_in_serve_store(self, df):
+        self += df
+        self.take_actions(max_level=0) # level:update
+        self.optimize_files()
+        self.take_actions(max_level=3) # level:save
+        self.maintain_cache()
+        self.write()
+        return
 
