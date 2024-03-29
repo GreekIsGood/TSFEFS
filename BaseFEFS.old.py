@@ -1,25 +1,6 @@
 from general import *
 
 
-#########################################################################################################################
-######################################################### TO DO #########################################################
-"""
-Tasks
-3. destructor (should be considered together with GreekEssentiates)
-4. Internal clone (with a temp path also specified in meta)
-5. optimize merge (not the __action_merge)
-6. optimize/review operators: >, <, >=, <=, ==, … 
-
-Done
- - Delete piece after save (done already?) <-- should be done, recheck.
- - Optimize the __setitem__using_indices() function: very inefficient, one idx at a time.
- - Optimize the resolve conflict function.
- - Optimize the optimize_files function.
-
-
-"""
-#########################################################################################################################
-#########################################################################################################################
 
 
 class BaseFEFS():
@@ -306,10 +287,7 @@ class BaseFEFS():
             assert self.seq_inv_trans_method is not None
             df_index["fr"] = df_index["fr"].apply(lambda x: self.seq_trans_method(x))
             df_index["to"] = df_index["to"].apply(lambda x: self.seq_trans_method(x))
-            
-        """ modified @ 01-03-2024 """
-        # df_index = df_index.sort_values(by="fr").reset_index(drop=True)
-        df_index = df_index.sort_values(by=["fr","to"]).reset_index(drop=True)
+        df_index = df_index.sort_values(by="fr").reset_index(drop=True)
         
         self.pieces = list(df_index["piece"])
         self.types = list(df_index["type"])
@@ -364,10 +342,7 @@ class BaseFEFS():
         df_index["fr"] = self.frs
         df_index["to"] = self.tos
         df_index["row_cnt"] = self.row_cnts
-        
-        # df_index = df_index.sort_values(by="fr")
-        df_index = df_index.sort_values(by=["fr","to"])
-        
+        df_index = df_index.sort_values(by="fr")
         orders = list(df_index.index)
         df_index = df_index.reset_index(drop=True)
                 
@@ -618,14 +593,6 @@ class BaseFEFS():
         have to be an implemented class.
         """
         assert self.__class__ != BaseFEFS
-
-        
-        """
-        Should these be added?
-        Question @ 03-03-2024
-        """
-        # df = self.dfs[idx]
-        # assert df is None
         
         
         piece = self.pieces[idx]
@@ -646,12 +613,6 @@ class BaseFEFS():
             df = df.sort_values(by=self.seq_col).reset_index(drop=True)
             
             self.dfs[idx] = df
-            """
-            Comment @ 05-03-2024
-            No, don't make any cache adjustment here.
-            Do it outside.
-            """
-            # self.include_idx(idx)
             return self.dfs[idx]
         
         elif type_ == self.__class__.__name__:
@@ -660,20 +621,11 @@ class BaseFEFS():
             fullname += '.' + self.__class__.extension
             fefs.read(fullname)
             self.dfs[idx] = fefs
-            
-            """
-            Comment @ 05-03-2024
-            No, don't make any cache adjustment here.
-            Do it outside.
-            """
-            # self.include_idx(idx)
-
             return self.dfs[idx]
         
         else:
             print("File type \"%s\" not yet implemented"%str(type_))
             assert False
-    
     
     
     
@@ -756,18 +708,10 @@ class BaseFEFS():
         if idx in self.cache:
             self.cache.remove(idx)
         self.cache.append(idx)
-        
 
     """
     Called by:
       - __action_delete
-      
-    Question @ 03-03-2024
-    Should it also be called when maintain_cache() is called?
-    
-    Answer @ 05-03-2024
-    No, maintain_cache() will directly modify the cache as a list
-    instead of telling which idx should be removed.
     """
     def remove_idx(self, idx): 
 
@@ -808,24 +752,11 @@ class BaseFEFS():
         
         """
         If idx not in cache, new_idx, which is split from idx, should not be in cache as well.
-        
-        Question @ 03-03-2024
-        Will the above situation exist?
         """
         if idx in self.cache:
             loc = self.cache.index(idx)
             if new_idx in self.cache:
-                
-                """
-                Question @ 03-03-2024
-                How is it possible to have new_idx in cache already?
-
-                Question @ 05-03-2024
-                This  split_idx(self, idx)  function, is it called before 
-                or after the split df added?
-                """
                 self.cache.remove(new_idx)
-                
             self.cache.insert(loc,new_idx)
         else:
             if new_idx in self.cache:
@@ -850,28 +781,6 @@ class BaseFEFS():
         tobemerged_idx = self.action_params[idx]
         assert isinstance(tobemerged_idx,int)
         
-        """
-        Question 1 @ 05-03-2024
-        This  merge_idx(self, idx)  function, is it called before 
-        or after df merged?
-
-        Answer 1 @ 06-03-2024
-        After merge.
-        
-        ----------------------------------------------------------
-
-        Question 2 @ 05-03-2024
-        Should the  tobemerged_idx  be removed from the cache?
-        Or is it removed somewhere else?
-        
-        Answer 2 @ 06-03-2024
-        This  merge_idx()  function is only serving  __action_merge(),
-        so let's only concern what's happening here and in  __action_merge().
-        
-        tobemerged_idx is not removed from here nor from  __action_merge(),
-        however, its  .actions[tobemerged_idx]  will be set as "delete", 
-        which will subsequently have  tobemerged_idx  removed from cache.
-        """        
         if tobemerged_idx in self.cache:
             loc2 = self.cache.index(tobemerged_idx)
             if idx in self.cache:
@@ -882,15 +791,10 @@ class BaseFEFS():
             else:
                 self.cache.insert(loc2,idx)
                 
-                
-                
     """
     Called by:
       - __add_fefs
       - __add_df
-      
-    Added @ 05-03-2024
-      - __read_piece    
     """
     def include_idx(self, idx):
 
@@ -910,11 +814,6 @@ class BaseFEFS():
 
 
 
-    """
-    Called by:
-     - __maintain_cache_by_rows
-     
-    """
     def __set_piece_to_none(self,idx):
 
         """ 
@@ -1015,23 +914,11 @@ class BaseFEFS():
         if len(self.cache) <= len_of_cache:
             return
         
-        
-        """
-        Modified @ 03-03-2024
-        
-        Old codes:
-        
         self.cache = self.cache[-len_of_cache:]
         for idx in range(len(self.pieces)):
             if idx in self.cache:
                 continue
             self.__set_piece_to_none(idx)
-        """        
-        clear_indices = self.cache[:-len_of_cache]
-        for idx in clear_indices:
-            self.__set_piece_to_none(idx)
-        self.cache = self.cache[-len_of_cache:]
-        return
                 
             
         
@@ -1087,7 +974,6 @@ class BaseFEFS():
         return
 
     
-    
     def __action_update(self, idx):
 
         """ 
@@ -1140,7 +1026,6 @@ class BaseFEFS():
             
         return
     
-    
 
     def __action_save(self, idx):
 
@@ -1155,19 +1040,7 @@ class BaseFEFS():
         self.actions[idx] = ""
         return
 
-    
 
-    """
-    Question @ 06-03-2024
-    Is  __action_merge  the only path to reach  __action_delete?
-    
-    Answer @ 06-03-2024
-     - __action_merge
-     - resolve_conflict 
-     - optimize_files (bcoz will call __action_merge)
-     - __delitem__using_idx
-    will also set "delete" actions.
-    """
     def __action_delete(self, idx):
 
         """ 
@@ -1175,11 +1048,11 @@ class BaseFEFS():
         have to be an implemented class.
         """
         assert self.__class__ != BaseFEFS
-
         
+
+
         df = self.dfs[idx]
         assert df is not None
-
 
         type_ = self.types[idx]
         piece = self.pieces[idx]
@@ -1195,17 +1068,6 @@ class BaseFEFS():
             print("Type", type_, "not supported")
             assert False
 
-            
-        """
-        Newline added @ 03-03-2024
-        
-        It has to be here instead of at the beginning.
-        If it is a fefs and set to None at the beginning, 
-        the fefs.remove() above will cause an error.
-        """
-        self.__set_piece_to_none(idx)
-        
-            
         del self.pieces[idx]
         del self.types[idx]
         del self.frs[idx]; del self.tos[idx]
@@ -1224,12 +1086,10 @@ class BaseFEFS():
         else:
             self.fr, self.to = None, None
             
-        row_cnts = [ rcnt for rcnt in self.row_cnts if rcnt is not None ]
-        self.row_cnt = sum(row_cnts)
+        self.row_cnt = sum(self.row_cnts)
         return
 
 
-    
     def __action_split(self, idx):
 
         """ 
@@ -1241,8 +1101,7 @@ class BaseFEFS():
 
         df = self.dfs[idx]
         assert df is not None
-
-            
+        
         type_ = self.types[idx]
         
         """
@@ -1259,29 +1118,19 @@ class BaseFEFS():
 
         dfs = [ df.iloc[(i*num_rows_per_file):((i+1)*num_rows_per_file)] for i in range(num_of_files) ]
 
-        
         if len(dfs) == 0:
-            
             assert False
-            
         elif len(dfs) == 1:
             """
             no need for split action
             """
-            
-            # """ Newly added lines @ 01-03-2024 """
-            # self.dfs[idx] = None
-            # !!! HERE !!! """ How to tell the cache? """
-            self.actions[idx] = ""
-            
             return
-
         else:
             self.types[idx] = "csv"
             type_ = "csv"
             self.dfs[idx] = df
 
-
+            
         df = dfs[0]
         self.dfs[idx] = df
         """ can leave fr and to updates when "update" """
@@ -1328,18 +1177,18 @@ class BaseFEFS():
         
         df = self.dfs[idx]
         
-        # """
-        # I might have reasons for this line,
-        # but seems like it is now causing trouble.
-        # Let's recall the reason?
-        # """
-        assert df is not None
-        # """
-        # Temporarily replace the above line by this
-        # """
-        # if df is None:
-        #     df = self.__read_piece(idx)
-        #     self.dfs[idx] = df
+        """
+        I might have reasons for this line,
+        but seems like it is now causing trouble.
+        Let's recall the reason?
+        """
+        # assert df is not None
+        """
+        Temporarily replace the above line by this
+        """
+        if df is None:
+            df = self.__read_piece(idx)
+            self.dfs[idx] = df
             
         
         
@@ -1349,18 +1198,18 @@ class BaseFEFS():
         
         
         
-        # """
-        # I might have reasons for this line,
-        # but seems like it is now causing trouble.
-        # Let's recall the reason?
-        # """
-        assert df_tobemerged is not None
-        # """
-        # Temporarily replace the above line by this
-        # """
-        # if df_tobemerged is None:
-        #     df_tobemerged = self.__read_piece(idx_tobemerged)
-        #     self.dfs[idx_tobemerged] = df_tobemerged
+        """
+        I might have reasons for this line,
+        but seems like it is now causing trouble.
+        Let's recall the reason?
+        """
+        # assert df_tobemerged is not None
+        """
+        Temporarily replace the above line by this
+        """
+        if df_tobemerged is None:
+            df_tobemerged = self.__read_piece(idx_tobemerged)
+            self.dfs[idx_tobemerged] = df_tobemerged
 
             
             
@@ -1376,7 +1225,7 @@ class BaseFEFS():
         elif  type_ == self.__class__.__name__  and  type_tobemerged == "csv":
             df += df_tobemerged
         elif  type_ == "tsfefs"  and  type_tobemerged == self.__class__.__name__:
-            df += df_tobemerged
+            df += df_tobemerged            
         else:
             print("Type",  type_tobemerged, "not supported.")
             assert False
@@ -1441,35 +1290,6 @@ class BaseFEFS():
             
 
 
-    # def take_actions(self, max_level=0):
-
-    #     """ 
-    #     Base class should never be actually called,
-    #     have to be an implemented class.
-    #     """
-    #     assert self.__class__ != BaseFEFS
-
-
-    #     """
-    #     Never set max_level = 5, infinite loop.
-    #     """
-    #     # Levels: 0) "update", 1) "split", 2) "merge", 3) "save", 4) "delete", 5) "".
-    #     current_level = 0
-    #     while current_level <= max_level:
-    #         self.vprint("current_level:", current_level)
-
-    #         action_levels = [ self.__class__.action_domain.index(act) for act in self.actions ]
-
-    #         action_indices = [ idx for idx in reversed(range(len(action_levels))) if action_levels[idx] == current_level ]
-    #         if len(action_indices) == 0:
-    #             current_level += 1
-    #         else: # len(action_indices) > 0:
-    #             for idx in action_indices:
-    #                 self.__map_action_to_func(current_level)(idx)
-    #             current_level = 0
-    #     return
-
-    
     def take_actions(self, max_level=0):
 
         """ 
@@ -1487,76 +1307,17 @@ class BaseFEFS():
         while current_level <= max_level:
             self.vprint("current_level:", current_level)
             
-            uactions = set(self.actions)
-            uaction_levels = [ self.__class__.action_domain.index(act) for act in uactions ]
-            min_level = min(uaction_levels)
+            action_levels = [ self.__class__.action_domain.index(act) for act in self.actions ]
             
-            if min_level == current_level:
-                
-                df_act = pd.DataFrame({"act":self.actions, "idx":range(len(self.actions))})
-                current_level_action_name = self.__class__.action_domain[current_level]
-                df_act = df_act[ df_act["act"] == current_level_action_name ].reset_index(drop=True)
-                action_indices = list(reversed(list(df_act["idx"])))
+            action_indices = [ idx for idx in reversed(range(len(action_levels))) if action_levels[idx] == current_level ]
+            if len(action_indices) == 0:
+                current_level += 1
+            else: # len(action_indices) > 0:
                 for idx in action_indices:
                     self.__map_action_to_func(current_level)(idx)
                 current_level = 0
-            
-            elif min_level > current_level:
-                
-                current_level = min_level
-                
-            else: # min_level < current_level
-                
-                assert False
-                
         return
-    
 
-    
-    """
-    Added @ 13-03-2024
-    
-    This is for the immediate need of taking action instead of waiting to accumulate 
-    the whole to take action.
-    
-    The 1st known use is used by __setitem_xxx().
-    """
-    def __focused_take_actions(self, idx, max_level=0):
-
-        """ 
-        Base class should never be actually called,
-        have to be an implemented class.
-        """
-        assert self.__class__ != BaseFEFS
-        
-        
-        """
-        Never set max_level = 5, infinite loop.
-        """
-        # Levels: 0) "update", 1) "split", 2) "merge", 3) "save", 4) "delete", 5) "".
-        current_level = 0
-        while current_level <= max_level:
-            self.vprint("current_level:", current_level)
-            
-            action = self.actions[ idx ]
-            action_level = self.__class__.action_domain.index(action)
-            
-            if action_level == current_level:
-                self.__map_action_to_func(current_level)(idx)
-                current_level = 0
-            
-            elif action_level > current_level:
-                
-                current_level = action_level
-                
-            else: # action_level < current_level
-                
-                assert False
-                
-        return
-    
-    
-    
 
     def has_pending_actions(self):
 
@@ -1685,12 +1446,6 @@ class BaseFEFS():
             return pd.DataFrame()
         
         df = pd.concat(dfs).reset_index(drop=True)
-        
-        """
-        New line of code @ 06-03-2024
-        """
-        del dfs[:]; del dfs; dfs = None
-        
         return df
 
     
@@ -1709,12 +1464,6 @@ class BaseFEFS():
             assert self.seq_trans_method is not None
             df[self.seq_col] = df[self.seq_col].apply(lambda x: self.seq_inv_trans_method(x))
         df.to_csv(dstfile,index=False)
-        
-        """
-        New line of code @ 06-03-2024
-        """
-        del df; df = None
-        
         return
 
     
@@ -2167,45 +1916,28 @@ class BaseFEFS():
     
         
         
-    # def __getitem__using_str(self,colname):
-
-    #     """ 
-    #     Base class should never be actually called,
-    #     have to be an implemented class.
-    #     """
-    #     assert self.__class__ != BaseFEFS
-
-
-    #     self.__str_check(colname)
-
-    #     values = []
-    #     orders = self.__no_overlapping_seq_range()
-    #     for _order in orders:
-
-    #         df = self.dfs[_order]
-    #         if df is None:
-    #             df = self.__read_piece(_order)                
-    #             self.dfs[_order] = df
-    #             """
-    #             Fixes on the way:
-    #             1. the cache (if still reading the whole piece)
-    #             2. don't read the whole piece
-    #             """
-
-    #         values.extend(df[colname])
-    #     S = pd.Series(values)
-    #     S.name = colname
-    #     return S
-        
     def __getitem__using_str(self,colname):
-        assert self.__class__ != BaseFEFS
-        self.__str_check(colname)
-        if colname == self.seq_col:
-            return self.__get_seqs()
-        return self.__get_col_all_pieces(colname)
-            
 
-            
+        """ 
+        Base class should never be actually called,
+        have to be an implemented class.
+        """
+        assert self.__class__ != BaseFEFS
+
+        
+        self.__str_check(colname)
+        
+        values = []
+        orders = self.__no_overlapping_seq_range()
+        for _order in orders:
+            df = self.dfs[_order]
+            if df is None:
+                df = self.__read_piece(_order)
+                self.dfs[_order] = df
+            values.extend(df[colname])
+        S = pd.Series(values)
+        S.name = colname
+        return S
 
 
     def __get_indices_in_same_piece(self, indices, orders):
@@ -2301,67 +2033,38 @@ class BaseFEFS():
         return self.__getitem__using_indices(indices)
 
         
-    # def __getitem__using_strs(self,colnames):
-
-    #     """ 
-    #     Base class should never be actually called,
-    #     have to be an implemented class.
-    #     """
-    #     assert self.__class__ != BaseFEFS
-
-
-    #     self.__strs_check(colnames)
-
-    #     dfs = []
-    #     indices = []
-    #     cum_row_cnt = 0
-    #     orders = self.__no_overlapping_seq_range()
-    #     for _order in orders:
-    #         df = self.dfs[_order]
-    #         if df is None:
-    #             df = self.__read_piece(_order)
-    #             self.dfs[_order] = df
-    #         dfs.append(df[colnames])
-    #         indices += list(np.array(self.__class__.get_index(df)) + cum_row_cnt)
-    #         cum_row_cnt += self.row_cnts[_order]
-
-    #     if len(dfs) == 0:
-    #         return pd.DataFrame()
-
-    #     df = pd.concat(dfs).reset_index(drop=True)
-    #     df.index = indices
-    #     return df
-
-    """
-    !!! DO NOT DELETE THE ABOVE COMMENTED CODES !!!
-    The Q&A below is about the above codes.    
-    
-    Question @ 10-03-2024
-    
-    For the old version of  __getitem__using_strs(self,colnames),
-    why should the indices be handled as another list?
-    ???
-    I've forgotten the reason...
-    
-    Answer @ 14-03-2024
-    That comes from the worry of wrong order timestamps.
-    E.g., during optimization of the sizes of the files,
-    some files may be combined with a piece of another file.
-    If the combined file is not sorted according to timestamps, 
-    (or even worse the indices are not reset)
-    than the indices will be in wrong order.
-    
-    But this should be rectified by having the codes ensuring the files,
-    regardless in memory or in storage, should be sorted immediately 
-    after any modification.
-    """    
     def __getitem__using_strs(self,colnames):
-        assert self.__class__ != BaseFEFS
-        self.__strs_check(colnames)
-        return self.__get_cols_all_pieces(colnames)
 
+        """ 
+        Base class should never be actually called,
+        have to be an implemented class.
+        """
+        assert self.__class__ != BaseFEFS
+
+                
+        self.__strs_check(colnames)
         
+        dfs = []
+        indices = []
+        cum_row_cnt = 0
+        orders = self.__no_overlapping_seq_range()
+        for _order in orders:
+            df = self.dfs[_order]
+            if df is None:
+                df = self.__read_piece(_order)
+                self.dfs[_order] = df
+            dfs.append(df[colnames])
+            indices += list(np.array(self.__class__.get_index(df)) + cum_row_cnt)
+            cum_row_cnt += self.row_cnts[_order]
         
+        if len(dfs) == 0:
+            return pd.DataFrame()
+        
+        df = pd.concat(dfs).reset_index(drop=True)
+        df.index = indices
+        return df
+        
+    
     def __getitem__(self, key):
 
         """ 
@@ -2432,11 +2135,6 @@ class BaseFEFS():
     ####################################################################################################################
     ##################################### Overriding Square Bracket - setitem: BEG #####################################
     
-    """
-    Revised @ 14-03-2024 from above.
-    
-    Haven't retained the previous codes.
-    """
     def __setitem__using_idx(self, idx, value):
 
         """ 
@@ -2457,104 +2155,33 @@ class BaseFEFS():
             pass # you can put any type of single value to the idx row.
             
         orders = self.__no_overlapping_seq_range()
-        _order, accum_row_cnt = self.__get_piece_idx(idx, orders)
+        for _order in orders:
+            row_cnt = self.row_cnts[_order]
+            if idx > row_cnt - 1:
+                idx -= row_cnt
+                continue
+            df = self.dfs[_order]
+            if df is None:
+                df = self.__read_piece(_order)
+            self.actions[_order] = "update"
+            type_ = self.types[_order]
+            if type_ == "csv":
+                df.iloc[idx] = value
+                self.dfs[_order] = df
+            elif type_ == self.__class__.__name__:
+                fefs = df
+                fefs[idx] = value
+                self.dfs[_order] = fefs
+            else:
+                print("Type", type_, "not supported")
+                assert False
+                
+            self.renew_idx(_order)
+            return
         
-        df = self.dfs[_order]
-        in_cache = True
-        if df is None:
-            in_cache = False # to indicate if it should be removed from self.dfs            
-            df = self.__read_piece(_order)
-            
-        idx -= accum_row_cnt
-        type_ = self.types[_order]
-        if type_ == "csv":
-            df.iloc[idx] = value
-            self.dfs[_order] = df
-        elif type_ == self.__class__.__name__:
-            # elif type_ == "tsfefs":
-            fefs = df
-            """            
-            Question @ 15-03-2024
-            -------------------------------
-            We have this line of code
-            
-                fefs[idx] = value
-            
-            . Is there a need to take 
-            action update immediately, 
-            just like how we do 
-            
-                self.__focused_take_actions(_order, max_level=4)
-                
-            at the end of this function?
-            
-            
-            
-            Answer @ 15-03-2024
-            -------------------------------            
-            Look, this function is 
-            
-                def __setitem__using_idx(self, ...):
-            
-            , and 
-            
-                fefs[idx] = value
-                
-            is actually triggering another 
-            
-                fefs.__setitem__using_idx(...)
-                
-            inside this function.
-            So, as this function is having an immediate action update call 
-            
-                self.__focused_take_actions(_order, max_level=4)
-                
-            at the end of the function, 
-            
-                fefs[idx] = value
-                
-            will also have its own immedidate action update call within 
-            
-                fefs.__setitem__using_idx(...)
-                
-            , even before this function's update call.
-            In conclusion, there's no need to add another immediate update action call.
-            """
-            fefs[idx] = value
-            self.dfs[_order] = fefs
-        else:
-            print("Type", type_, "not supported")
-            assert False
-
-        
-        """
-        modified @ 13-03-2024
-
-        See more comments in  __setitem__using_str()
-        """
-        """
-        modify on "modified @ 13-03-2024" @ 18-03-2024
-
-        This modification is to optimize the immediate aciton.
-        If it is in cache, immediate action needed as "update", 
-        "save" can be left to collective action.
-        If it is not in cache, however, "update" followed by "save" is needed.
-        """
-        self.actions[_order] = "update" # will become "save" after taking "update" action.
-        # self.__focused_take_actions(_order, max_level=3) # "save" is at 3
-        if not in_cache: # remove from memory if previously not in cache
-            self.__focused_take_actions(_order, max_level=3) # "save" is at 3
-            self.dfs[_order] = None
-            del df; df = None
-        else:            
-            self.__focused_take_actions(_order, max_level=0) # "update" is at 0
-            """ No need to renew, let it be at the same position if already in cache. """
-            # self.renew_idx(_order) 
-            pass
-
+        print("Error! Find it out!")
+        assert False
         return
-    
-    
 
 
     def __setitem__using_str(self, colname, value):
@@ -2587,179 +2214,21 @@ class BaseFEFS():
         for _order in orders:
             idx = _order
             df = self.dfs[_order]
-            in_cache = True
             if df is None:
-                in_cache = False # to indicate if it should be removed from self.dfs
                 df = self.__read_piece(idx)
 
             cnt_new = cnt + self.row_cnts[_order]
             df[colname] = value[ cnt : cnt_new ]
             cnt = cnt_new
-            
-            # self.dfs[_order] = df
-            # self.actions[_order] = "update"
-            
-            """
-            modified @ 13-03-2024
-            
-            Whenever a column is updated, the old codes would make it have all the dfs 
-            stored before update.
-            
-            Everything in memory at the same time violates the idea of FEFS, 
-            the revised method should be to update immediately,
-            and then remove from memory if it is not originally in the cache.
-            --------------------------------------------------------------------------------
-            
-            modification-on-modification @ 18-03-2024
-            
-            This is  __setitem__using_str(), which is either changing a column or 
-            creating a new column.
-            For those not in cache, saving as an immediate action is of course needed.
-            However, for those in cache, yes they need to be saved, but not immediately.
-            
-            There's one possibility for those in cache to be needed to take action 
-            immediately.
-            For this  __setitem__using_str(), it is not prohibiting the  seq_col  
-            to be modified, that means the time/seq could be changed completely.
-            If time/seq is changed, "update" is needed, better immediately.
-            
-            So make the if-then-else as 
-            1. If  in_cache  and  colname != seq_col, "save" without immediate action.
-            2. If  in_cache  and  colname == seq_col, "update" immediately,
-               which will become "save" after being updated.
-            3. If not  in_cache  and  colname != seq_col, "save" immediately, 
-               and remove from cache.
-            4. If not  in_cache  and  colname == seq_col, "update" immediately,
-               which will become "save" after being updated, 
-               and then remove from cache.
-               
-            Below commented the @ 13-03-2024 version, 
-            and the codes below the commented codes are the rewritten codes @ 18-03-2024.
-            """
-            # self.dfs[_order] = df
-            # self.actions[_order] = "update"
-            # self.__focused_take_actions(_order, max_level=4)
-            # if not in_cache: # remove from memory if previously not in cache
-            #     self.dfs[_order] = None
-            #     del df; df = None
-            # else:            
-            #     """ No need to renew, let it be at the same position if already in cache. """
-            #     # self.renew_idx(_order) 
-            #     pass
             self.dfs[_order] = df
-            
-            if colname == self.seq_col:  
-                
-                self.actions[_order] = "update"
-                
-                if not in_cache: # remove from memory if previously not in cache
-                    self.__focused_take_actions(_order, max_level=3) # "save" is at 3
-                    self.dfs[_order] = None
-                    del df; df = None
-                else:            
-                    self.__focused_take_actions(_order, max_level=0) # update is at 0
-                    """ No need to renew, let it be at the same position if already in cache. """
-                    # self.renew_idx(_order) 
-                    pass
-                
-            else:
-                
-                self.actions[_order] = "save"
-                
-                if not in_cache: # remove from memory if previously not in cache
-                    self.__focused_take_actions(_order, max_level=3) # "save" is at 3
-                    self.dfs[_order] = None
-                    del df; df = None
-                else:            
-                    """ No need to renew, let it be at the same position if already in cache. """
-                    # self.renew_idx(_order) 
-                    pass
-                
-            
+            self.actions[_order] = "update"
+        
         if colname not in self.colnames:
             self.colnames += [colname]
         return
 
-    
 
                     
-    # def __setitem__using_indices(self,indices,value):
-
-    #     """ 
-    #     Base class should never be actually called,
-    #     have to be an implemented class.
-    #     """
-    #     assert self.__class__ != BaseFEFS
-
-
-    #     indices = self.__indices_check(indices)
-    #     value = self.__value_check(value, len(self.colnames), len(indices))
-    #     orders = self.__no_overlapping_seq_range()
-
-    #     cnt = 0
-    #     for idx in indices:
-    #         df_ = None
-    #         for _order in orders:
-    #             row_cnt = self.row_cnts[_order]
-    #             if idx > row_cnt - 1:
-    #                 idx -= row_cnt
-    #                 continue
-    #             df = self.dfs[_order]
-
-    #             in_cache = True
-    #             if df is None:
-    #                 in_cache = False # to indicate if it should be removed from self.dfs
-    #                 df = self.__read_piece(_order)
-
-    #             type_ = self.types[_order]
-    #             if type_ == "csv":
-    #                 df_ = df.iloc[idx:(idx+1)]
-    #             elif type_ == self.__class__.__name__:
-    #                 fefs = df
-    #                 df_ = fefs[idx:(idx+1)]
-    #             else:
-    #                 print("Type", type_, "is not supported")
-    #                 assert False
-    #             break
-
-    #         if len(df_) == 0:
-    #             print("Indice could be out of range")
-    #             assert False
-
-    #         cnt_new = cnt + 1
-    #         if type_ == "csv":
-    #             df.iloc[[idx]] = value[ cnt : cnt_new ]
-    #             self.dfs[_order] = df 
-    #         elif type_ == self.__class__.__name__:
-    #             fefs[[idx]] = value[ cnt : cnt_new ]
-    #             self.dfs[_order] = fefs
-    #         else:
-    #             print("Type", type_, "not supported")
-    #             assert False
-    #         cnt = cnt_new 
-
-
-    #         """
-    #         modified @ 13-03-2024
-
-    #         See more comments in  __setitem__using_str()
-    #         """
-    #         self.actions[_order] = "update"
-    #         self.__focused_take_actions(_order, max_level=4)
-    #         if not in_cache: # remove from memory if previously not in cache
-    #             self.dfs[_order] = None
-    #             del df; df = None
-    #         else:            
-    #             """ No need to renew, let it be at the same position if already in cache. """
-    #             # self.renew_idx(_order) 
-    #             pass       
-
-    #     return
-    
-    """
-    Revised @ 14-03-2024 from above.
-    So, don't remove the above commented codes, yet.
-    """
     def __setitem__using_indices(self,indices,value):
 
         """ 
@@ -2771,82 +2240,52 @@ class BaseFEFS():
                         
         indices = self.__indices_check(indices)
         value = self.__value_check(value, len(self.colnames), len(indices))
-        orders = self.__no_overlapping_seq_range()        
+        orders = self.__no_overlapping_seq_range()
         
         cnt = 0
-        while len(indices) > 0:
-            
-            _order, adjusted_indices = self.__get_indices_in_same_piece(indices, orders)
-
-            df = self.dfs[_order]
-            in_cache = True
-            if df is None:
-                in_cache = False # to indicate if it should be removed from self.dfs
-                df = self.__read_piece(_order)
-
-            type_ = self.types[_order]            
-            if type_ == "csv":
-                df_ = df.iloc[adjusted_indices]
-            elif type_ == self.__class__.__name__:
-                fefs = df
-                df_ = fefs[adjusted_indices]
-            else:
-                print("Type", type_, "not supported")
-                assert False
-
+        for idx in indices:
+            df_ = None
+            for _order in orders:
+                row_cnt = self.row_cnts[_order]
+                if idx > row_cnt - 1:
+                    idx -= row_cnt
+                    continue
+                df = self.dfs[_order]
+                if df is None:
+                    df = self.__read_piece(_order)
                 
-            if len(df_) < len(adjusted_indices):
+                type_ = self.types[_order]
+                if type_ == "csv":
+                    df_ = df.iloc[idx:(idx+1)]
+                elif type_ == self.__class__.__name__:
+                    fefs = df
+                    df_ = fefs[idx:(idx+1)]
+                else:
+                    print("Type", type_, "is not supported")
+                    assert False
+                break
+                
+            if len(df_) == 0:
                 print("Indice could be out of range")
                 assert False
                 
-            indices = indices[len(adjusted_indices):]
-
-        
-            cnt_new = cnt + len(adjusted_indices)
+            cnt_new = cnt + 1
             if type_ == "csv":
-                df.iloc[ adjusted_indices ] = value[ cnt : cnt_new ]
-                self.dfs[_order] = df 
+                df.iloc[[idx]] = value[ cnt : cnt_new ]
+                self.dfs[_order] = df
             elif type_ == self.__class__.__name__:
-                fefs[ adjusted_indices ] = value[ cnt : cnt_new ]
+                fefs[[idx]] = value[ cnt : cnt_new ]
                 self.dfs[_order] = fefs
             else:
                 print("Type", type_, "not supported")
                 assert False
             cnt = cnt_new 
-            
-            
-            """
-            modified @ 13-03-2024
-            
-            See more comments in  __setitem__using_str()
-            """
-            """
-            modify on "modified @ 13-03-2024" @ 18-03-2024
-            
-            This modification is to optimize the immediate aciton.
-            If it is in cache, immediate action needed as "update", 
-            "save" can be left to collective action.
-            If it is not in cache, however, "update" followed by "save" is needed.
-            """
             self.actions[_order] = "update"
-            # self.__focused_take_actions(_order, max_level=4)
-            if not in_cache: # remove from memory if previously not in cache
-                self.__focused_take_actions(_order, max_level=3) # "save" is at 3
-                self.dfs[_order] = None
-                del df; df = None
-            else:            
-                self.__focused_take_actions(_order, max_level=0) # "update" is at 0
-                """ No need to renew, let it be at the same position if already in cache. """
-                # self.renew_idx(_order) 
-                pass
-            
+                    
+            self.renew_idx(_order)
+
         return
-    
-    
-    
-    
-    
-    
+            
 
     def __setitem__using_bools(self,B,value):
 
@@ -2880,53 +2319,13 @@ class BaseFEFS():
         for _order in orders:
             idx = _order
             df = self.dfs[_order]
-            
-            in_cache = True
             if df is None:
-                in_cache = False # to indicate if it should be removed from self.dfs
                 df = self.__read_piece(idx)
             new_cum_row_cnt = cum_row_cnt + self.row_cnts[_order]
             df[colnames] = value[cum_row_cnt:new_cum_row_cnt]
             self.dfs[_order] = df
             cum_row_cnt = new_cum_row_cnt
-            
-            """
-            modified @ 13-03-2024
-            
-            See more comments in  __setitem__using_str()
-            -----------------------------------------------------------------------------
-            modification-on-modification @ 18-03-2024
-            
-            See the same section in  __setitem__using_strs() @ 18-03-2024,
-            same logic.
-            """
-            if self.seq_col in colnames:
-                
-                self.actions[_order] = "update"
-                
-                if not in_cache: # remove from memory if previously not in cache
-                    self.__focused_take_actions(_order, max_level=3) # "save" is at 3
-                    self.dfs[_order] = None
-                    del df; df = None
-                else:            
-                    self.__focused_take_actions(_order, max_level=0) # update is at 0
-                    """ No need to renew, let it be at the same position if already in cache. """
-                    # self.renew_idx(_order) 
-                    pass
-                
-            else:
-                
-                self.actions[_order] = "save"
-                
-                if not in_cache: # remove from memory if previously not in cache
-                    self.__focused_take_actions(_order, max_level=3) # "save" is at 3
-                    self.dfs[_order] = None
-                    del df; df = None
-                else:            
-                    """ No need to renew, let it be at the same position if already in cache. """
-                    # self.renew_idx(_order) 
-                    pass
-                
+            self.actions[_order] = "update"
         return
 
         
@@ -3012,15 +2411,13 @@ class BaseFEFS():
         _order, accum_row_cnt = self.__get_piece_idx(idx, orders)
 
         df = self.dfs[_order]
-        in_cache = True
         if df is None:
-            in_cache = False
             df = self.__read_piece(_order)
             self.dfs[_order] = df
 
         idx -= accum_row_cnt
         type_ = self.types[_order]
-        # row_cnt = self.row_cnts[_order]
+        row_cnt = self.row_cnts[_order]
         len_ = None
         if type_ == "csv":
             """
@@ -3033,208 +2430,27 @@ class BaseFEFS():
         elif type_ == self.__class__.__name__:
             fefs = df
             del fefs[idx]
-            
-            """
-            Question @ 15-03-2024
-            Should we take action here?
-            
-            Answer @ 15-03-2024
-            No, thus the line
-            
-                fefs.take_actions(max_level=4)
-                
-            is commented.
-                
-            .
-            This whole function is modified on 15-03-2024, 
-            having the below line of code or not before the modification is not a concern anymore, 
-            under the current modified structure we shouldn't take action.
-            
-            For this function  __delitem__using_idx(),
-            it will be ended by either immediately executing "update" or "delete" action,
-            
-                self.actions[_order] = "delete"
-            or 
-                self.actions[_order] = "update"
-            
-            , followed by 
-            
-                self.__focused_take_actions(_order, max_level=4)
-            .
-            Now, let's realize that the above line of code
-            
-                del fefs[idx]
-                
-            is triggering  fefs.__delitem__using_idx() recursively.
-            That means before reaching the end of this function to call 
-            
-                self.__focused_take_actions(_order, max_level=4)
-                
-            of "update" or "delete",
-            
-                fefs.__focused_take_actions(_order, max_level=4)
-                
-            is already called by fefs for its "upate" or "delete".
-            This is exactly what we want to achieve by calling
-            
-                fefs.take_actions(max_level=4)
-            
-            , and hence we don't need to have this duplication.
-            """
-            # fefs.take_actions(max_level=4)
-            
-            
-            len_ = len(fefs)  # since action is taken (recursively by "del fefs[idx]"), this fefs' row_cnt is updated.
+            fefs.take_actions(max_level=4)
+            len_ = len(fefs)  # since action is taken, this fefs' row_cnt is updated.
             df = fefs
         else:
             print("Type", type_, "not supported")
             assert False
 
         self.dfs[_order] = df
-        
-                
+        self.actions[_order] = "update"
+
         """
-        Comments & Question @ 15-03-2024
-        
-        This is for the following codes commented between 
-        ***********************
-        # [ codes ] 
-        ***********************
-        , so don't delete the below commented codes.
-        
-        
-        At the end of
-        
-            __action_update()  
-            
-        there will set 
-        
-            if len_ == 0:
-                self.actions[idx] = "delete"
-            
-        . If now we have 
-
-            self.actions[_order] = "update"
-            self.__focused_take_actions(_order, max_level=4)
-            
-        , and if its length become 0, the piece and everything at _order will be deleted,
-        since our action max_level is 4 (delete).
-        Hence, after the line 
-        
-            self.__focused_take_actions(_order, max_level=4)
-            
-        , if the things at  _order  are deleted, all the items like 
-        
-            self.dfs[ _order ]
-            self.actions[ _order ]
-            ...
-            
-        will become invalid references.
-        Here suggest 2 approaches.
-        
-            1. 
-            Reduce max_level to 3 (save)
-            Thus, although  __action_update()  will still run  
-
-                if len_ == 0:
-                    self.actions[idx] = "delete"
-
-            , the  __action_delete()  won't be executed immediately, 
-            but in the collective  take_actions(), 
-            and thus within the current function  _order  is still a valid reference.
-
-            Also there's no need to have the lines 
-
-                if len_ == 0:
-                    self.actions[_order] = "delete"
-
-            at the end of this function.
-
-            2. 
-            Perform immediate action delete in a higher checking order than of immedidate action update.
-            Create an if-then-else, 
-            if length == 0, then immediate action delete,
-            else immediate action update.
-            
-            If delete is taken action, inside  __action_delete()  
-            
-                self.__set_piece_to_none(idx)
-                
-            will be called, then we don't have to worry about things like 
-            
-                self.dfs[_order] = None
-                del df; df = None
-                
-            , and the fefs' attributes like  fr, to, row_cnt, ..., and the cache as well, 
-            will also be updated inside  __action_delete().
-            After the if case,  _order  won't be accessed after because the function has ended.
-            
-            In contrast, if immedidate update is called, that means the object at  _order 
-            is not comletely empty, and we can do everything of the immediate update 
-            and those subsequent routines.
-            
-        The 2. approach is chosen.
+        Should it be renewed in cache?
+        2023-10-07, decided not to renew in cache.
         """
-        # *****************************************************
-        # """
-        # modified @ 13-03-2024
-
-        # See more comments in  __setitem__using_str()
-        # """
-        # self.actions[_order] = "update"
-        # self.__focused_take_actions(_order, max_level=4)
-        # if not in_cache: # remove from memory if previously not in cache
-        #     self.dfs[_order] = None
-        #     del df; df = None
-        # else:            
-        #     """ No need to renew, let it be at the same position if already in cache. """
-        #     # self.renew_idx(_order) 
-        #     pass
-
-        # """
-        # Should it be renewed in cache?
-        # 2023-10-07, decided not to renew in cache.
-        # """
-        # # self.renew_idx(_order) 
-
-        # if len_ == 0:
-        #     self.actions[_order] = "delete"
-        # *****************************************************
-        
-        """
-        modified @ 15-03-2024
-
-        See the "Comments & Question @ 15-03-2024" above, 
-        and more comments in  __setitem__using_str().
-        """
-        
+        # self.renew_idx(_order) 
+            
         if len_ == 0:
             self.actions[_order] = "delete"
-            self.__focused_take_actions(_order, max_level=4) # "delete" is at 4.
-        else:
-            self.actions[_order] = "update"
-            if not in_cache: # remove from memory if previously not in cache
-                self.__focused_take_actions(_order, max_level=3) # "save" is at 3.
-                self.dfs[_order] = None
-                del df; df = None
-            else:
-                """
-                comment @ 18-03-2024
-                
-                We still need to have both "update" and "save", 
-                where "save" will be automatically be the status after "update" action is taken,
-                but we only need immediate action for "update", 
-                for "save" we can wait until the collective actions.
-                """
-                self.__focused_take_actions(_order, max_level=0) # "update" is at 0.
-                """ No need to renew, let it be at the same position if already in cache. """
-                # self.renew_idx(_order) 
-                pass
-            
         return 
-    
 
-    
+
     def __delitem__using_str(self,colname):
 
         """ 
@@ -3250,51 +2466,14 @@ class BaseFEFS():
         orders = self.__no_overlapping_seq_range()
         for _order in orders:
             df = self.dfs[_order]
-            
-            in_cache = True
             if df is None:
-                in_cache = False
                 df = self.__read_piece(_order)
-                
             del df[colname]
             self.dfs[_order] = df
             self.actions[_order] = "save"
-            
-            """
-            Modified @ 18-03-2024
-            This handling method is different from the other immedidate actions.
-            
-            The others are having the immediate actions outside/above the 
-            
-                if not in_cache: 
-                
-            , taking immediate actions unconditionally, but one is conditional.
-            
-            If the df will be retained in cache, there is no rush to save it, 
-            can leave it until the collective take_actions().
-            Otherwise, if it has to be removed from cache, 
-            the change has to be saved before removal.
-            ------------------------------------------------------------------------
-            
-            Comment @ 18-03-2024
-            
-            After another round of modification, 
-            "The others are having the immediate actions outside/above the 
-            
-                if not in_cache:
-            "
-            is not true anymore.
-            They are now mostly inside the if-then-else cases.
-            """
-            if not in_cache: # remove from memory if previously not in cache
-                self.__focused_take_actions(_order, max_level=3) # "save" is at 3.
-                self.dfs[_order] = None
-                del df; df = None
-            
         self.colnames.remove(colname)
         return    
 
-    
 
     def __delitem__using_indices(self,indices):
 
@@ -3313,10 +2492,7 @@ class BaseFEFS():
         while len(indices) > 0:
             _order, adjusted_indices = self.__get_indices_in_same_piece(indices, orders)
             df = self.dfs[_order]
-            
-            in_cache = True
             if df is None:
-                in_cache = False
                 df = self.__read_piece(_order)
 
             type_ = self.types[_order]
@@ -3329,72 +2505,28 @@ class BaseFEFS():
             elif type_ == self.__class__.__name__:
                 fefs = df
                 del fefs[adjusted_indices]
-                
-                """
-                Question @ 15-03-2024
-                Should we take action here?
-
-                Answer @ 15-03-2024
-                Refer to the long answer in  __delitem__using_idx().
-                """                
-                # fefs.take_actions(max_level=4)
-
-                len_ = len(fefs)  # since action is taken (recursively by "del fefs[idx]"), this fefs' row_cnt is updated.
+                fefs.take_actions(max_level=4)
+                len_ = fefs.row_cnt  # since action is taken, this fefs' row_cnt is updated.
                 df = fefs
             else:
                 print("Type", type_, "not supported")
                 assert False
-                
+
             self.dfs[_order] = df
-            
+            self.actions[_order] = "update"
 
-            
             """
-            modified @ 18-03-2024
+            Should it be renewed in cache?
+            2023-10-07, decided not to renew in cache.
+            """
+            # self.renew_idx(_order)
 
-            See the "Comments & Question @ 15-03-2024" in  __delitem__using_idx, 
-            and more comments in  __setitem__using_str().
-            """
             if len_ == 0:
                 self.actions[_order] = "delete"
-                self.__focused_take_actions(_order, max_level=4)
-            else:
-                self.actions[_order] = "update"
-                if not in_cache: # remove from memory if previously not in cache
-                    self.__focused_take_actions(_order, max_level=3) # "save" is at 3.
-                    self.dfs[_order] = None
-                    del df; df = None
-                else:
-                    """
-                    comment @ 18-03-2024
-
-                    We still need to have both "update" and "save", 
-                    where "save" will be automatically be the status after "update" action is taken,
-                    but we only need immediate action for "update", 
-                    for "save" we can wait until the collective actions.
-                    """
-                    self.__focused_take_actions(_order, max_level=0) # "update" is at 0.
-                    """ No need to renew, let it be at the same position if already in cache. """
-                    # self.renew_idx(_order) 
-                    pass
-                
-                
-            # self.actions[_order] = "update"
-
-            # """
-            # Should it be renewed in cache?
-            # 2023-10-07, decided not to renew in cache.
-            # """
-            # # self.renew_idx(_order)
-
-            # if len_ == 0:
-            #     self.actions[_order] = "delete"
     
             indices = indices[len(adjusted_indices):]
-        
         return
 
-    
 
     def __delitem__using_bools(self,B):
 
@@ -3428,12 +2560,9 @@ class BaseFEFS():
         for _order in orders:
             df = self.dfs[_order]
             type_ = self.types[_order]
-            
-            in_cache = True
             if df is None:
-                in_cache = False
                 df = self.__read_piece(_order)
-
+                
             if type_ == "csv":
                 for col in colnames:
                     del df[col]
@@ -3446,21 +2575,10 @@ class BaseFEFS():
             self.dfs[_order] = df
             self.actions[_order] = "save"
             
-            """
-            modified @ 18-03-2024
-            
-            More details refer to  __delitem__using_str().
-            """
-            if not in_cache: # remove from memory if previously not in cache
-                self.__focused_take_actions(_order, max_level=3) # "save" is at 3.
-                self.dfs[_order] = None
-                del df; df = None
-            
         for col in colnames:
             self.colnames.remove(col)
         return
 
-    
 
     def __delitem__(self, key):
 
@@ -3525,225 +2643,10 @@ class BaseFEFS():
 
     
     
-    ####################################################################################################################
-    ############################ The EQV of get_seq related functions, but not seq_col: BEG ############################
-
-    """
-    The equivalent of   __read_seq(self, idx),
-    but for columns other than   seq_col.
-    """
-    def __read_col_single_piece(self, col, idx):
-
-        """ 
-        Base class should never be actually called,
-        have to be an implemented class.
-        """
-        assert self.__class__ != BaseFEFS
-        
-        
-        assert col != self.seq_col
-
-        seq_col = self.seq_col
-        piece = self.pieces[idx]
-        fullname = self.__compose_piece_fullname(piece)
-           
-        type_ = self.types[idx]
-        if type_ == "csv":
-            
-            df = pd.read_csv(fullname, usecols=[col, seq_col])
-
-            if self.seq_trans_method is not None:
-                assert self.seq_inv_trans_method is not None
-                df[seq_col] = df[seq_col].apply(lambda x: self.seq_trans_method(x))
-
-            df = df.sort_values(by=seq_col).reset_index(drop=True)
-            df = df.drop(columns=[seq_col])
-            S = df[col]
-        
-        elif type_ == self.__class__.__name__:
-
-            fefs = self.__class__()
-            fefs.read(fullname)
-            S = fefs.__get_col_all_pieces(col)
-        
-        else:
-            print("File type", self.__class__, "not supported")
-            assert False
-            
-        return S
-
-    
-    
-
-    """
-    The equivalent of   __get_seq(self, idx),
-    but for columns other than   seq_col.
-    """
-    def __get_col_single_piece(self, col, idx):
-
-        """ 
-        Base class should never be actually called,
-        have to be an implemented class.
-        """
-        assert self.__class__ != BaseFEFS
-
-        assert col != self.seq_col
-                
-        df = self.dfs[idx]
-        type_ = self.types[idx]
-        if df is None:
-            S = self.__read_col_single_piece(col, idx)
-            return S
-
-        if type_ == "csv":
-            S = df[col]
-        elif type_ == self.__class__.__name__:
-            fefs = df
-            S = fefs.__get_col_all_pieces(col)
-        else:
-            assert False
-            
-        return S
-    
-
-    
-    """
-    The equivalent of   __get_seqs(self),
-    but for columns other than   seq_col.
-    """
-    def __get_col_all_pieces(self, col):
-
-        """ 
-        Base class should never be actually called,
-        have to be an implemented class.
-        """
-        assert self.__class__ != BaseFEFS
-
-                
-        S = []
-        for order_ in self.__no_overlapping_seq_range():
-            S_ = self.__get_col_single_piece(col, order_)
-            S_ = list(S_)
-            S.extend(S_)
-        S = pd.Series(S)
-        return S
-
     
     
     
-    
-    """
-    The multi-column version of  __read_col_single_piece(self, col, idx),
-    and does not resist having  seq_col  in the requested columns.
-    """
-    def __read_cols_single_piece(self, cols, idx):
 
-        """ 
-        Base class should never be actually called,
-        have to be an implemented class.
-        """
-        assert self.__class__ != BaseFEFS
-        
-
-        assert isinstance(cols, list)
-        assert all( [ isinstance(col, str) for col in cols ] )
-        
-        seq_col = self.seq_col
-        _cols = dc(cols)
-        if seq_col not in cols:
-            _cols += [ seq_col ]
-
-        piece = self.pieces[idx]
-        fullname = self.__compose_piece_fullname(piece)
-           
-        type_ = self.types[idx]
-        if type_ == "csv":
-            
-            df = pd.read_csv(fullname, usecols=_cols)
-
-            if self.seq_trans_method is not None:
-                assert self.seq_inv_trans_method is not None
-                df[seq_col] = df[seq_col].apply(lambda x: self.seq_trans_method(x))
-
-            df = df.sort_values(by=seq_col).reset_index(drop=True)
-            df = df[cols]
-        
-        elif type_ == self.__class__.__name__:
-
-            fefs = self.__class__()
-            fefs.read(fullname)
-            df = fefs.__get_cols_all_pieces(cols)
-        
-        else:
-            print("File type", self.__class__, "not supported")
-            assert False
-            
-        return df
-
-    
-    
-    """
-    The multi-column version of  __get_col_single_piece(self, col, idx),
-    and does not resist having  seq_col  in the requested columns.
-    """
-    def __get_cols_single_piece(self, cols, idx):
-
-        """ 
-        Base class should never be actually called,
-        have to be an implemented class.
-        """
-        assert self.__class__ != BaseFEFS
-
-        assert isinstance(cols, list)
-        assert all( [ isinstance(col, str) for col in cols ] )
-        
-                
-        df = self.dfs[idx]
-        type_ = self.types[idx]
-        if df is None:
-            df_ = self.__read_cols_single_piece(cols, idx)
-            return df_
-
-        if type_ == "csv":
-            df_ = df[cols]
-        elif type_ == self.__class__.__name__:
-            fefs = df
-            df_ = fefs.__get_cols_all_pieces(cols)
-        else:
-            assert False
-            
-        return df_
-    
-
-    
-    """
-    The multi-column version of  __get_col_all_pieces(self, col),
-    and does not resist having  seq_col  in the requested columns.
-    """
-    def __get_cols_all_pieces(self, cols):
-
-        """ 
-        Base class should never be actually called,
-        have to be an implemented class.
-        """
-        assert self.__class__ != BaseFEFS
-
-                
-        dfs = []
-        for order_ in self.__no_overlapping_seq_range():
-            df_ = self.__get_cols_single_piece(cols, order_)
-            dfs.extend(df_)
-        df = pd.concat(dfs).reset_index(drop=True)
-        return df
-    
-    ############################ The EQV of get_seq related functions, but not seq_col: END ############################
-    ####################################################################################################################
-    
-
-    
-    
-    
-    
     
 
     ######################################################################################################################
@@ -3794,6 +2697,7 @@ class BaseFEFS():
     The codes are strictly prohibited from using fefs[seq_col],
     since such operation will affect the cache.
     """
+    # def __read_time(self, idx):
     def __read_seq(self, idx):
 
         """ 
@@ -4425,6 +3329,10 @@ class BaseFEFS():
       
         
         # the added fefs must be under the current path
+        """
+        fefs = dc(fefs)
+        fefs.path = self.__compose_fullpath()
+        """
         fefs = fefs.clone(self.__compose_fullpath(),fefs.name)
         if fefs.name in self.pieces:
             fefs.name = self.gen_valid_piece(prefix=fefs.name+"_", suffix="")
@@ -4439,13 +3347,6 @@ class BaseFEFS():
         self.dfs += [fefs]
         
         self.include_idx(len(self.pieces)-1) # len(self.pieces)-1: the new highest array idx
-        
-        """
-        modified @ 19-03-2024
-        
-        Make the "update" immediately take action, save leave to the collective actions.
-        """
-        self.__focused_take_actions(len(self.pieces)-1, max_level=0) # "update" is at 0
 
         return self
     
@@ -4489,14 +3390,7 @@ class BaseFEFS():
         self.dfs += [df] # the elements can be df or classes of BaseFEFS
         
         self.include_idx(len(self.pieces)-1) # len(self.pieces)-1: the new highest array idx
-
-        """
-        modified @ 19-03-2024
-        
-        Make the "update" immediately take action, save leave to the collective actions.
-        """
-        self.__focused_take_actions(len(self.pieces)-1, max_level=0) # "update" is at 0
-        
+            
         return self
 
     
@@ -4765,67 +3659,6 @@ class BaseFEFS():
             return True
         
         
-        
-
-    # def resolve_conflict(self):
-
-    #     """ 
-    #     Base class should never be actually called,
-    #     have to be an implemented class.
-    #     """
-    #     assert self.__class__ != BaseFEFS
-
-
-    #     while self.conflict_exist():
-
-    #         df_index, orders = self.dump_index_df() # already sorted by "fr"
-    #         self = self.load_index_df(df_index, orders)
-
-    #         for idx in range(len(self.pieces)-1):
-
-
-    #             if self.frs[idx+1] < self.tos[idx]:
-
-    #                 df0 = self.dfs[idx]
-    #                 if df0 is None:
-    #                     df0 = self.__read_piece(idx)
-    #                     self.dfs[idx] = df0
-
-    #                 df1 = self.dfs[idx+1]
-    #                 if df1 is None:
-    #                     df1 = self.__read_piece(idx+1)
-    #                     self.dfs[idx+1] = df1
-
-    #                 B0 = df0[self.seq_col] < self.frs[idx+1]
-    #                 df0a = df0[B0].reset_index(drop=True)
-    #                 df0b = df0[~B0].reset_index(drop=True)
-
-    #                 B1 = df1[self.seq_col] <= self.tos[idx]
-    #                 df1a = df1[B1].reset_index(drop=True)
-    #                 df1b = df1[~B1].reset_index(drop=True)
-
-    #                 self.actions[idx] = "delete"
-    #                 self.actions[idx+1] = "delete"
-
-    #                 df_new = pd.concat([df0b,df1a]).reset_index(drop=True)
-    #                 df_new = df_new.sort_values(by=self.seq_col).reset_index(drop=True)
-
-    #                 if len(df0a) > 0:
-    #                     self += df0a
-    #                 if len(df1b) > 0:
-    #                     self += df1b
-    #                 if len(df_new) > 0:
-    #                     self += df_new
-    #                 break
-
-    #         self.take_actions(max_level=4)
-
-    #     return 
-    """
-    modified @ 20-03-2024
-    
-    Don't remove the above commented old version, yet.
-    """
     def resolve_conflict(self):
 
         """ 
@@ -4846,16 +3679,12 @@ class BaseFEFS():
                 if self.frs[idx+1] < self.tos[idx]:
 
                     df0 = self.dfs[idx]
-                    in_cache0 = True
                     if df0 is None:
-                        in_cache0 = False
                         df0 = self.__read_piece(idx)
                         self.dfs[idx] = df0
 
                     df1 = self.dfs[idx+1]
-                    in_cache0 = True
                     if df1 is None:
-                        in_cache1 = False
                         df1 = self.__read_piece(idx+1)
                         self.dfs[idx+1] = df1
 
@@ -4867,367 +3696,76 @@ class BaseFEFS():
                     df1a = df1[B1].reset_index(drop=True)
                     df1b = df1[~B1].reset_index(drop=True)
 
+                    self.actions[idx] = "delete"
+                    self.actions[idx+1] = "delete"
+
                     df_new = pd.concat([df0b,df1a]).reset_index(drop=True)
                     df_new = df_new.sort_values(by=self.seq_col).reset_index(drop=True)
-
                     
-                    """
-                    Comment and new codes @ 20-03-2024
-                    
-                    Rationale for the code below.
-                    The question that can explain the rationale is, 
-                    why can't it be 
-                    
-                        self.actions[idx+1] = "update"
-                        self.__focused_take_actions(idx+1, max_level=4)
-                    ?
-                    Here's what happens with the 2 hypothetical lines of codes.
-                    No doubt the  __focused_take_actions()  will first take "update" action.
-                    However, in  __action_update()  if the len(df) is 0, 
-                    it will transit to the status "delete".
-                    It seems convenient if we allow the  __focused_take_actions()  to have  max_level=4,
-                    which will also take the transitted "delete" action (if it does).
-                    
-                    The above flow becomes a loophole, if df at idx+1 is not len == 0,
-                    and not in cache, i.e., needs to be removed from dfs[idx+1].
-                    Have these lines after the hypothetical codes,
-
-                        if not in_cache1: # remove from memory if previously not in cache
-                            self.dfs[idx+1] = None
-                            del df; df = None
-                            
-                    if "delete" has been taken action, the items in  dfs[idx+1]  is something else,
-                    then the cache becomes inconsistent.
-                    
-                    Hence, we need to separate the cases of "delete" and "update",
-                    applicable to both  idx+1  and  idx.
-                    
-                    Additional note, it is preferred to complete  idx+1  prior to  idx,
-                    as a good practice.
-                    Similar reason as above, if something happens at  idx  to make it being deleted,
-                    the whole RHS of  idx  will be shifted, and  idx+1  becomes something else.  
-                    """
-                    self.dfs[idx+1] = df1b
-                    if len(df1b) == 0:
-                        self.actions[idx+1] = "delete"
-                        self.__focused_take_actions(idx+1, max_level=4) # "delete" is at 4
-                    else:
-                        self.actions[idx+1] = "update"
-                        self.__focused_take_actions(idx+1, max_level=3) # "save" is at 3
-                        if not in_cache1: # remove from memory if previously not in cache
-                            self.dfs[idx+1] = None
-                            del df1b; df1b = None
-                        else:            
-                            """ No need to renew, let it be at the same position if already in cache. """
-                            # self.renew_idx(_order) 
-                            pass
-
-                    self.dfs[idx] = df0a
-                    if len(df0a) == 0:
-                        self.actions[idx] = "delete"
-                        self.__focused_take_actions(idx, max_level=4) # "delete" is at 4
-                    else:
-                        self.actions[idx] = "update" # in "update" if find len(df) is 0, will be assigned with "delete"
-                        self.__focused_take_actions(idx, max_level=3) # "save" is at 3
-                        if not in_cache0: # remove from memory if previously not in cache
-                            self.dfs[idx] = None
-                            del df0a; df0a = None
-                        else:            
-                            """ No need to renew, let it be at the same position if already in cache. """
-                            # self.renew_idx(_order) 
-                            pass
-
+                    if len(df0a) > 0:
+                        self += df0a
+                    if len(df1b) > 0:
+                        self += df1b
                     if len(df_new) > 0:
-                        self += df_new # this piece will become in cache.
+                        self += df_new
                     break
                     
-            # self.take_actions(max_level=4)
+            self.take_actions(max_level=4)
             
         return 
-
             
 
-    # def optimize_files(self):
-
-    #     """
-    #     Base class should never be actually called,
-    #     have to be an implemented class.
-    #     """
-    #     assert self.__class__ != BaseFEFS
-
-
-    #     while True:
-
-    #         df_index, orders = self.dump_index_df() # already sorted by "fr"
-    #         self = self.load_index_df(df_index, orders)
-
-    #         idx = 0
-    #         pieces_len_adjustment = 0
-    #         while idx < len(self.pieces):
-
-    #             if self.row_cnts[idx] >= self.max_row_per_piece:                    
-    #                 self.actions[idx] = "split"
-    #                 pieces_len_adjustment += 1
-    #                 break
-    #             elif self.row_cnts[idx] < self.max_row_per_piece/2:
-    #                 idx_next = idx + 1
-    #                 if idx_next < len(self.pieces):
-    #                     if self.row_cnts[idx_next] + self.row_cnts[idx] < self.max_row_per_piece:
-    #                         self.actions[idx] = "merge"
-    #                         pieces_len_adjustment -= 1
-    #                         self.action_params[idx] = idx_next
-    #                     elif self.row_cnts[idx_next] > self.max_row_per_piece/2:
-    #                         self.actions[idx_next] = "split"
-    #                         pieces_len_adjustment += 1
-    #                     else:
-    #                         # better not do anything, leave it alone.
-    #                         idx += 1
-    #                         continue
-    #                     break
-
-    #             idx += 1
-
-    #         # "split" is 1, "merge" is 2.
-    #         # but since after merge there will be "delete", which is 4, s
-    #         # so max_level = 4.
-    #         self.take_actions(max_level=4)
-    #         if idx == len(self.pieces) - pieces_len_adjustment:
-    #             break
-
-    #     return
-    
-    """
-    modified @ 21-03-2024
-    """
+            
+            
     def optimize_files(self):
 
-        """
+        """ 
         Base class should never be actually called,
         have to be an implemented class.
         """
         assert self.__class__ != BaseFEFS
+
                 
-        df_index, orders = self.dump_index_df() # already sorted by "fr"
-        self = self.load_index_df(df_index, orders)
+        while True:
             
-        idx = 0
-        while idx < len(self.pieces):
-
-            reorganize = False
+            df_index, orders = self.dump_index_df() # already sorted by "fr"
+            self = self.load_index_df(df_index, orders)
             
-            if self.row_cnts[idx] >= self.max_row_per_piece:
-
-                self.actions[idx] = "split"
-
-                df = self.dfs[idx]
-                in_cache = True
-                if df is None:
-                    in_cache = False # to indicate if it should be removed from self.dfs
-                    df = self.__read_piece(idx)
-
-                assert len(df) == self.row_cnts[idx]
-
-
-                """
-                Comment @ 21-03-2024
-
-                The original df at idx will become smaller,
-                then there should be 1 or more new df(s) being appended.
-
-                The original one needs "update" action, 
-                if it is not in cache, then also needs "save" action immediately,
-                otherwise can leave the "save" until collective actions.
-
-                The new df(s) will be assigned with "update" status inside  __action_split,
-                and the design of  __action_split  includes inserting the new indices
-                into the cache.
-                For this  optimize_files()  function, let's don't let them be in cache, 
-                so "save" should also be executed and then remove them from memory.
-                """
-                max_idx_before_split = len(self.pieces) - 1
-                if in_cache:
-                    self.__focused_take_actions(idx, max_level=1) # "split" is at 1
-                else:
-                    self.__focused_take_actions(idx, max_level=3) # "save" is at 3
-                    self.dfs[idx] = None
-                    del df; df = None
-
-                max_idx_after_split = len(self.pieces) - 1
-                new_df_cnt = max_idx_after_split - max_idx_before_split
-                assert new_df_cnt >= 1
-
-                for new_idx in reversed(range(len(self.pieces))[-new_df_cnt:]): # good practice in descending order
-                    df_new = self.dfs[new_idx]
-                    assert df_new is not None # they are newly created so must not be. None
-                    self.__focused_take_actions(new_idx, max_level=3) # "save" is at 3                        
-                    self.remove_idx(new_idx)
-                    self.dfs[new_idx] = None
-                    del df_new; df_new = None                
-                    
-                """
-                modified @ 21-03-2024
-
-                Rationale of the following codes.
-
-                Imagine right before reaching this idx, i.e., at idx - 1,
-                the  dfs[idx-1]  deserves to be merged, 
-                but due to the large size of  dfs[idx], the merge was skipped.
-
-                Now, after splitting df[idx], each df is at most  max_row_per_piece/2,
-                which means it is possible to have a 2nd chance to have 
-                dfs[idx-1]  merge with  dfs[idx],
-                that's why it is                     
-                    idx -= 1
-                """
-                if idx - 1 >= 0:
-                    idx -= 1
-                else:
-                    idx += 1
-
-                # "split" messes up the seq/time order, need to reorganize at the end of the loop
-                reorganize = True
-
-            elif self.row_cnts[idx] < self.max_row_per_piece/2:
-
-                idx_next = idx + 1
-                """
-                modification @ 27-03-2024
-
-                With this checking case, the rest of the codes (if-then-else) below
-                can be shifted 1 tab to the left, become less messy.                
-                """
-                if idx_next >= len(self.pieces):
-                    # idx += 1
-                    # continue
-                    break # simply break the loop
-                    
-
-                """
-                comment @ 27-03-2024
+            idx = 0
+            pieces_len_adjustment = 0
+            while idx < len(self.pieces):
                 
-                The following already fulfilled 
-                
-                    idx_next < len(self.pieces):
-                """
-                if self.row_cnts[idx_next] + self.row_cnts[idx] < self.max_row_per_piece:
-
-                    self.actions[idx] = "merge"
-                    self.action_params[idx] = idx_next
-
-                    """
-                    modified @ 21-03-2024
-
-                    After some thoughts, further clarity was gained for the functionality of 
-                    __action_xxx.
-
-                    In principle, keep the  __action_xxx  functions pure, 
-                     - assume all the materials it needs are ready (e.g., the df is in memory),
-                     - and hence, assume all the cache removal, if applicable, handled outside of it.
-                    """
-                    df = self.dfs[idx]
-                    in_cache = True
-                    if df is None:
-                        in_cache = False # to indicate if it should be removed from self.dfs
-                        df = self.__read_piece(idx)
-
-                    df_next = self.dfs[idx_next]
-                    if df_next is None:
-                        df_next = self.__read_piece(idx_next)
-
-
-                    if in_cache:
-                        self.__focused_take_actions(idx, max_level=2) # "merge" is at 2
-                    else:
-                        self.__focused_take_actions(idx, max_level=3) # "save" is at 3
-                        self.dfs[idx] = None
-                        del df; df = None
-
-                    self.__focused_take_actions(idx_next, max_level=4) # "delete" is at 4
-
-                    """
-                    comment @ 27-03-2024
-
-                    after merge and removal of the merged df, the len will be 1 less,
-                    having 
-                        idx += 1
-                    may make it exceed the len, 
-                    if that's the case it's okay to let loop  
-                        while idx < len(self.pieces) 
-                    break.
-                    """ 
-                    idx += 1
-                    # continue
-
-                elif self.row_cnts[idx_next] > self.max_row_per_piece/2:
-
-                    self.actions[idx_next] = "split"
-
-                    """
-                    comment @ 27-03-2024
-
-                    The "split" handling would be the same as the case at the beginning.
-                    Just that this one is on  idx_next ,
-                    and there will be no modification on idx because the split on idx_next 
-                    is aiming to let it merge with idx.                            
-                    """
-                    df_next = self.dfs[idx_next]
-                    in_cache_next = True
-                    if df_next is None:
-                        in_cache_next = False # to indicate if it should be removed from self.dfs
-                        df_next = self.__read_piece(idx_next)
-
-                    assert len(df_next) == self.row_cnts[idx_next]
-
-
-                    max_idx_before_split = len(self.pieces) - 1
-                    if in_cache_next:
-                        self.__focused_take_actions(idx_next, max_level=1) # "split" is at 1
-                    else:
-                        self.__focused_take_actions(idx_next, max_level=3) # "save" is at 3
-                        self.dfs[idx_next] = None
-                        del df_next; df_next = None
-
-                    max_idx_after_split = len(self.pieces) - 1
-                    new_df_cnt = max_idx_after_split - max_idx_before_split
-                    assert new_df_cnt >= 1
-
-                    for new_idx in reversed(range(len(self.pieces))[-new_df_cnt:]): # good practice in descending order
-                        df_new = self.dfs[new_idx]
-                        assert df_new is not None # they are newly created so must not be. None
-                        self.__focused_take_actions(new_idx, max_level=3) # "save" is at 3                        
-                        self.remove_idx(new_idx)
-                        self.dfs[new_idx] = None
-                        del df_new; df_new = None
-
+                if self.row_cnts[idx] >= self.max_row_per_piece:
+                    self.actions[idx] = "split"
+                    pieces_len_adjustment += 1
+                    break
+                elif self.row_cnts[idx] < self.max_row_per_piece/2:
+                    idx_next = idx + 1
+                    if idx_next < len(self.pieces):
+                        if self.row_cnts[idx_next] + self.row_cnts[idx] < self.max_row_per_piece:
+                            self.actions[idx] = "merge"
+                            pieces_len_adjustment -= 1
+                            self.action_params[idx] = idx_next
+                        elif self.row_cnts[idx_next] > self.max_row_per_piece/2:
+                            self.actions[idx_next] = "split"
+                            pieces_len_adjustment += 1
+                        else:
+                            # better not do anything, leave it alone.
+                            idx += 1
+                            continue
+                        break
                     
-                    # do nothing on idx
-                    idx += 0
-                    # break
-                    # "split" messes up the seq/time order, need to reorganize at the end of the loop
-                    reorganize = True
-
-                else:
-                    # better not do anything, leave it alone.
-                    idx += 1
-                    # continue
-                    
-            else:
                 idx += 1
-
-
-                
-            if reorganize:
-                """
-                new lines @ 27-03-2024
-
-                The 2 lines are needed bcoz "split" messes up the seq / time order
-                """
-                df_index, orders = self.dump_index_df() # already sorted by "fr"
-                self = self.load_index_df(df_index, orders)
-
+            
+            # "split" is 1, "merge" is 2.
+            # but since after merge there will be "delete", which is 4, s
+            # so max_level = 4.
+            self.take_actions(max_level=4)
+            if idx == len(self.pieces) - pieces_len_adjustment:
+                break
 
         return
-    
+
     ########################################## conflict resolve, optimize: END ##########################################
     #####################################################################################################################
     

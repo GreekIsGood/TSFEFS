@@ -1,9 +1,9 @@
 from BaseFEFS import *
 
-sys.path.append("GreekCaptures/general")
-sys.path.append("GreekCaptures/utils")
+# sys.path.append("GreekCaptures/general")
+# sys.path.append("GreekCaptures/utils")
 
-from feats import *
+from feat_notations import *
 
 
 
@@ -890,6 +890,15 @@ class ConsumptionFS(BaseFEFS):
             """
             consumpfs = ConsumptionFS()
             consumpfs.read(fullpath)
+            
+            #############
+            #### New ####
+            assert consumpfs.seq_col == seq_col
+            assert set(list(df.columns)) - set(consumpfs.colnames) == set()
+            assert set(consumpfs.colnames) - set(list(df.columns)) == set()
+            #############
+            #############
+            
         except:
             dict_meta = ConsumptionFS.__fill_dict_meta(seq_col, list(df.columns))
             consumpfs = ConsumptionFS.create(dict_meta, name)
