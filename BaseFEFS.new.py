@@ -5,6 +5,7 @@ from general import *
 ######################################################### TO DO #########################################################
 """
 Tasks
+1. optimize/review maintain_cache <-- currently requiring all actions cleared before maintain_cache 
 3. destructor (should be considered together with GreekEssentiates)
 4. Internal clone (with a temp path also specified in meta)
 5. optimize merge (not the __action_merge)
@@ -871,7 +872,7 @@ class BaseFEFS():
         tobemerged_idx is not removed from here nor from  __action_merge(),
         however, its  .actions[tobemerged_idx]  will be set as "delete", 
         which will subsequently have  tobemerged_idx  removed from cache.
-        """        
+        """
         if tobemerged_idx in self.cache:
             loc2 = self.cache.index(tobemerged_idx)
             if idx in self.cache:
@@ -881,7 +882,9 @@ class BaseFEFS():
                     self.cache.insert(loc2,idx)
             else:
                 self.cache.insert(loc2,idx)
-                
+
+        return
+        
                 
                 
     """
@@ -1543,7 +1546,18 @@ class BaseFEFS():
             
             if action_level == current_level:
                 self.__map_action_to_func(current_level)(idx)
-                current_level = 0
+                """
+                added @ 29-03-2024
+                
+                Without the following checking line(s), 
+                if it is "delete" and action taken,
+                the things at idx will be removed and will continue on the next one,
+                which is originally at idx+1.
+                """
+                if self.__class__.action_domain[action_level] != "delete":
+                    current_level = 0
+                else:
+                    break
             
             elif action_level > current_level:
                 
@@ -4853,7 +4867,7 @@ class BaseFEFS():
                         self.dfs[idx] = df0
 
                     df1 = self.dfs[idx+1]
-                    in_cache0 = True
+                    in_cache1 = True
                     if df1 is None:
                         in_cache1 = False
                         df1 = self.__read_piece(idx+1)
@@ -4869,6 +4883,27 @@ class BaseFEFS():
 
                     df_new = pd.concat([df0b,df1a]).reset_index(drop=True)
                     df_new = df_new.sort_values(by=self.seq_col).reset_index(drop=True)
+                    """
+                    modified @ 29-03-2024
+                    
+                    if any one of df0 or df1 is in cache, df_new is allowed to be in cache.
+                    """
+                    in_cache_new = in_cache0 or in_cache1
+                    
+                    """
+                    added @ 29-03-2024
+                    
+                    if any one of idx or idx+1 is TSFEFS (w.l.o.g),
+                    after the above df reorganize operations that generates 
+                    df0a, df1b, and df_new, which are all dataframes (csv),
+                    the ????.tsfefs folder(s) should be removed.
+                    """
+                    if self.types[idx] != "csv":
+                        df0.remove()
+                    if self.types[idx+1] != "csv":
+                        df1.remove()
+                    
+                    
 
                     
                     """
@@ -4906,8 +4941,21 @@ class BaseFEFS():
                     as a good practice.
                     Similar reason as above, if something happens at  idx  to make it being deleted,
                     the whole RHS of  idx  will be shifted, and  idx+1  becomes something else.  
+                    
+                    ---------------------------------------------------------------------------------
+                    
+                    added @ 29-03-2024
+                    
+                    After turning the df at idx and df at idx+1 
+                    into df0a, df1b, and df_new, 
+                    all of these are no longer FEFS, and they must be in type "csv".
+                    So all of them has to be explicitly specified as 
+                    
+                        self.dfs[...] = "csv"
+                        
                     """
                     self.dfs[idx+1] = df1b
+                    self.types[idx+1] = "csv"
                     if len(df1b) == 0:
                         self.actions[idx+1] = "delete"
                         self.__focused_take_actions(idx+1, max_level=4) # "delete" is at 4
@@ -4923,6 +4971,7 @@ class BaseFEFS():
                             pass
 
                     self.dfs[idx] = df0a
+                    self.types[idx] = "csv"
                     if len(df0a) == 0:
                         self.actions[idx] = "delete"
                         self.__focused_take_actions(idx, max_level=4) # "delete" is at 4
@@ -4938,7 +4987,23 @@ class BaseFEFS():
                             pass
 
                     if len(df_new) > 0:
-                        self += df_new # this piece will become in cache.
+                        self += df_new 
+                        
+                        """
+                        comment @ 29-03-2024
+                        
+                        By default the added df_new will be in cache.
+                        According to the above, its status in cache should be decided by  in_cache_new,
+                        """
+                        if not in_cache_new:
+                            new_idx = len(self.pieces)-1
+                            df_new = self.dfs[new_idx]
+                            assert df_new is not None # they are newly created so must not be. None
+                            self.__focused_take_actions(new_idx, max_level=3) # "save" is at 3                        
+                            self.remove_idx(new_idx)
+                            self.dfs[new_idx] = None
+                            del df_new; df_new = None                
+                        
                     break
                     
             # self.take_actions(max_level=4)
@@ -4999,7 +5064,7 @@ class BaseFEFS():
     """
     modified @ 21-03-2024
     """
-    def optimize_files(self):
+    def optimize_files(self, verbose_for_optimize_files=False):
 
         """
         Base class should never be actually called,
@@ -5012,6 +5077,13 @@ class BaseFEFS():
             
         idx = 0
         while idx < len(self.pieces):
+            
+            if verbose_for_optimize_files:
+                print("idx:", idx)
+                self.print_info()
+                print()
+                print()
+            
 
             reorganize = False
             
@@ -5024,6 +5096,7 @@ class BaseFEFS():
                 if df is None:
                     in_cache = False # to indicate if it should be removed from self.dfs
                     df = self.__read_piece(idx)
+                    self.dfs[idx] = df
 
                 assert len(df) == self.row_cnts[idx]
 
@@ -5047,10 +5120,22 @@ class BaseFEFS():
                 max_idx_before_split = len(self.pieces) - 1
                 if in_cache:
                     self.__focused_take_actions(idx, max_level=1) # "split" is at 1
+                    if verbose_for_optimize_files:
+                        print("loc: 1, action: split")
+                        print("__focused_take_actions(%i, max_level=1)"%idx)
+                        self.print_info()
+                        print()
+                        print()
                 else:
                     self.__focused_take_actions(idx, max_level=3) # "save" is at 3
                     self.dfs[idx] = None
                     del df; df = None
+                    if verbose_for_optimize_files:
+                        print("loc: 2, action: split")
+                        print("__focused_take_actions(%i, max_level=3)"%idx)
+                        self.print_info()
+                        print()
+                        print()
 
                 max_idx_after_split = len(self.pieces) - 1
                 new_df_cnt = max_idx_after_split - max_idx_before_split
@@ -5062,7 +5147,14 @@ class BaseFEFS():
                     self.__focused_take_actions(new_idx, max_level=3) # "save" is at 3                        
                     self.remove_idx(new_idx)
                     self.dfs[new_idx] = None
-                    del df_new; df_new = None                
+                    del df_new; df_new = None
+                    if verbose_for_optimize_files:
+                        print("loc: 3, action: add")
+                        print("__focused_take_actions(%i, max_level=3)"%new_idx)
+                        self.print_info()
+                        print()
+                        print()
+
                     
                 """
                 modified @ 21-03-2024
@@ -5129,20 +5221,47 @@ class BaseFEFS():
                     if df is None:
                         in_cache = False # to indicate if it should be removed from self.dfs
                         df = self.__read_piece(idx)
+                        self.dfs[idx] = df
 
                     df_next = self.dfs[idx_next]
+                    in_cache_next = True
                     if df_next is None:
+                        in_cache_next = False
                         df_next = self.__read_piece(idx_next)
+                        self.dfs[idx_next] = df_next
 
-
+                    """
+                    modified @ 29-03-2024
+                    
+                    if any one of df or df_next is in cache, the merged one should be in cache.
+                    """
+                    in_cache |= in_cache_next
                     if in_cache:
                         self.__focused_take_actions(idx, max_level=2) # "merge" is at 2
+                        if verbose_for_optimize_files:
+                            print("loc: 4, action: merge")
+                            print("__focused_take_actions(%i, max_level=2)"%idx)
+                            self.print_info()
+                            print()
+                            print()
                     else:
                         self.__focused_take_actions(idx, max_level=3) # "save" is at 3
                         self.dfs[idx] = None
                         del df; df = None
+                        if verbose_for_optimize_files:
+                            print("loc: 5, action: merge")
+                            print("__focused_take_actions(%i, max_level=3)"%idx)
+                            self.print_info()
+                            print()
+                            print()
 
                     self.__focused_take_actions(idx_next, max_level=4) # "delete" is at 4
+                    if verbose_for_optimize_files:
+                        print("loc: 6, action: delete")
+                        print("__focused_take_actions(%i, max_level=4)"%idx_next)
+                        self.print_info()
+                        print()
+                        print()
 
                     """
                     comment @ 27-03-2024
@@ -5175,6 +5294,7 @@ class BaseFEFS():
                     if df_next is None:
                         in_cache_next = False # to indicate if it should be removed from self.dfs
                         df_next = self.__read_piece(idx_next)
+                        self.dfs[idx_next] = df_next
 
                     assert len(df_next) == self.row_cnts[idx_next]
 
@@ -5182,10 +5302,23 @@ class BaseFEFS():
                     max_idx_before_split = len(self.pieces) - 1
                     if in_cache_next:
                         self.__focused_take_actions(idx_next, max_level=1) # "split" is at 1
+                        if verbose_for_optimize_files:
+                            print("loc: 7, action: split")
+                            print("__focused_take_actions(%i, max_level=1)"%idx_next)
+                            self.print_info()
+                            print()
+                            print()
+                        
                     else:
                         self.__focused_take_actions(idx_next, max_level=3) # "save" is at 3
                         self.dfs[idx_next] = None
                         del df_next; df_next = None
+                        if verbose_for_optimize_files:
+                            print("loc: 8, action: split")
+                            print("__focused_take_actions(%i, max_level=3)"%idx_next)
+                            self.print_info()
+                            print()
+                            print()
 
                     max_idx_after_split = len(self.pieces) - 1
                     new_df_cnt = max_idx_after_split - max_idx_before_split
@@ -5198,6 +5331,12 @@ class BaseFEFS():
                         self.remove_idx(new_idx)
                         self.dfs[new_idx] = None
                         del df_new; df_new = None
+                        if verbose_for_optimize_files:
+                            print("loc: 9, action: add")
+                            print("__focused_take_actions(%i, max_level=3)"%new_idx)
+                            self.print_info()
+                            print()
+                            print()
 
                     
                     # do nothing on idx
