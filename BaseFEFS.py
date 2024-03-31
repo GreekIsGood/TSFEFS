@@ -1481,6 +1481,8 @@ class BaseFEFS():
         """
         assert self.__class__ != BaseFEFS
         
+        if len(self.actions) == 0:
+            return
         
         """
         Never set max_level = 5, infinite loop.
@@ -2140,6 +2142,8 @@ class BaseFEFS():
             
         return (_order, accum_row_cnt)
 
+
+    
     
 
     def __getitem__using_idx(self,idx):
@@ -2229,7 +2233,7 @@ class BaseFEFS():
         have to be an implemented class.
         """
         assert self.__class__ != BaseFEFS
-
+        
                 
         idx = indices[0]
         _order, accum_row_cnt = self.__get_piece_idx(idx, orders)            
@@ -2248,7 +2252,10 @@ class BaseFEFS():
             break
             
         return (_order, adjusted_indices)
-            
+
+    
+    
+    
         
         
     def __getitem__using_indices(self,indices):
@@ -3250,6 +3257,8 @@ class BaseFEFS():
 
     
     def __delitem__using_str(self,colname):
+        
+        # print(" __delitem__using_str ", "is called")
 
         """ 
         Base class should never be actually called,
@@ -3302,7 +3311,9 @@ class BaseFEFS():
             """
             if not in_cache: # remove from memory if previously not in cache
                 self.__focused_take_actions(_order, max_level=3) # "save" is at 3.
+                # print("_order:", _order)
                 self.dfs[_order] = None
+                # print("self.dfs[_order]:", self.dfs[_order])
                 del df; df = None
             
         self.colnames.remove(colname)
@@ -3369,7 +3380,9 @@ class BaseFEFS():
             See the "Comments & Question @ 15-03-2024" in  __delitem__using_idx, 
             and more comments in  __setitem__using_str().
             """
+            whole_piece_deleted = False
             if len_ == 0:
+                whole_piece_deleted = True
                 self.actions[_order] = "delete"
                 self.__focused_take_actions(_order, max_level=4)
             else:
@@ -3405,6 +3418,42 @@ class BaseFEFS():
             #     self.actions[_order] = "delete"
     
             indices = indices[len(adjusted_indices):]
+            """
+            added @ 31-03-2024
+
+            Since the recent revision let the action be taken immediately,
+            unlike the old version that here has not yet del anything,
+            the new version at here has already deleted some indices, 
+            or even worse the whole piece.
+
+            Let's analyse the cases,
+            1. Only partial of the piece is deleted.
+            2. The whole piece is deleted.
+
+            1. 
+            No doubt for each of the remaining indices have to be subtracted by len(adjusted_indices),
+            i.e., 
+                indices = [ idx_ - len(adjusted_indices) for idx_ in indices ] 
+
+            , since the piece is retained,  orders  still follows.
+
+            2. 
+            The indices values have to be adjusted the same as 1.
+            This time, the whole piece at  _order  is deleted
+            (that all the arrays: pieces, types, dfs, actions, ... are shrinked by 1),
+            the  orders  sequence has to be adjusted as well.
+            Let's say  orders  is originally
+                [0,1,5,3,2,4]
+            , assume 3 is removed, all values > 3 should be reduced by 1, i.e.,
+                [0,1,4,  2,3]
+            .
+            Assume instead it is 5 being removed, 5 is the largest value so no reduction needed, 
+                [0,1,  3,2,4]
+            """
+            indices = (np.array(indices) - len(adjusted_indices)).tolist()
+            if whole_piece_deleted:
+                orders.remove(_order)
+                orders = [ od if od < _order else od - 1 for od in orders ]
         
         return
 
