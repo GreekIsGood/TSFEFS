@@ -3742,11 +3742,11 @@ class BaseFEFS():
         """
         assert self.__class__ != BaseFEFS
 
-                
+
         dfs = []
         for order_ in self.__no_overlapping_seq_range():
             df_ = self.__get_cols_single_piece(cols, order_)
-            dfs.extend(df_)
+            dfs.extend([df_])        
         df = pd.concat(dfs).reset_index(drop=True)
         return df
     
