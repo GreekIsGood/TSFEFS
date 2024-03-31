@@ -4600,22 +4600,11 @@ class BaseFEFS():
     
     ####################################################################################################################
     #################################################### MERGE: BEG ####################################################
-    # # @classmethod
-    # # def merge(cls, left_obj, right_obj, path="", name="", on="", target=None):
-    # @staticmethod
-    # def merge(left_obj, right_obj, path="", name="", on="", target=None):
-    #     """
-    #     1. For class merge, requiring a new path and a new name.
-    #     2. The left_obj has to be classes of BaseFEFS.
-    #     3. The right_obj can be (pd.DataFrame, classes of BaseFEFS)
-    #     4. Target is the targeted columns for the right_obj.
-    #     """
-    #     assert (path is not None) and (name is not None) and (on is not None)
-    #     assert "" not in [path, name, on]
-    #     assert isinstance(left_obj,classes of BaseFEFS)
-    #     assert isinstance(right_obj,(classes of BaseFEFS,pd.DataFrame))
-    #     fefs = left_obj.merge(right_obj, on, target=target, path=path, name=name)
-    #     return fefs
+    """
+    Merge is the method that has nothing to do with FEFS' seq/time property.
+    On the contrary, it is because the seq/time property s.t. FEFS can't merge normally like dataframe.
+    These merge routines are best effort imitatations of normal dataframe merges.
+    """
 
     
     def __get_fefs_reference(self,path,name):
