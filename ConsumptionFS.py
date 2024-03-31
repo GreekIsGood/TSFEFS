@@ -1,31 +1,44 @@
 from BaseFEFS import *
 
+# sys.path.append("GreekCaptures/general")
+# sys.path.append("GreekCaptures/utils")
+
+from feat_notations import *
 
 
 
-class TSFEFS(BaseFEFS):
-    
-    """
-    The basics are implemented in BaseFEFS, 
-    the variations are those that are needed to be taken care of:
-    1. the df[seq_col] read by read_csv from BaseFEFS are not formated as str.
-    2. df[seq_col] are not formated as datetime after reading in.
-    3. Although sort df[seq_col] has occurred in BaseFEFS, it is not sorted in datetime order.
-    """
+
+class ConsumptionFS(BaseFEFS):
     
     ##########################################################################################################
     ########################################## Class Variables: BEG ##########################################
-    extension = "tsfefs"    
+    extension = "consumpfs"
+    
+    """
+    What's missing:
+     - "seq_col".
+     - "colnames" will be determined automatically.
+     - "ftable_feats"
+     - "ftable_info"
+    """
+    default_incomplete_dict_meta = {
+        "piece_name_len": 8, 
+        "max_row_per_piece": 20000,
+        "cache_config":{"rows_in_cache":None,"len_of_cache":3}
+    }
     ########################################## Class Variables: END ##########################################
     ##########################################################################################################
-
-
-
+    
+    
+    
+    
+    
     def print_info(self):
         super().print_info()
-        print("datetime_format:", self.datetime_format)
-        print("seq_col dtype used in read_csv:", self.seq_read_dtype)
-        print("seq_col date type (in tuple):", dt_types)
+        print("Feat tables included:", self.ftables)
+        print()
+        print("Features:", self.ftable_feats)
+        print("Info:", self.ftable_info)
         return
 
 
@@ -34,39 +47,45 @@ class TSFEFS(BaseFEFS):
     ############################################ Init methods: BEG ############################################
     def __init__(self):
         super().__init__()
-        self.datetime_format = None
-        self.seq_trans_method = lambda x: dt.strptime(x, self.datetime_format)
-        self.seq_inv_trans_method = lambda x: x.strftime(self.datetime_format)
-        self.seq_read_dtype = str
-        self.seq_type = dt_types
+        self.ftables = None # list 
+        self.ftable_feats = None # dict
+        self.ftable_info = None # dict
+        self.seq_type = int_types
+        
+        
+
+    @classmethod
+    def create(cls, dict_meta, name, path=None):
+        consumpfs = super().create(dict_meta, name, path=path)
+        consumpfs.ftable_feats = dict_meta["ftable_feats"]
+        consumpfs.ftable_info = dict_meta["ftable_info"]
+        return consumpfs
+    
 
 
-    
-    """ Use BaseFEFS's """
-    # @classmethod
-    # def create(cls, dict_meta, name, path=None):
-    #     pass
-    
-    
     """ Use BaseFEFS's """
     # def __check_cache_config(self):
     #     pass
     
     
-
+    
     def load_meta(self,dict_meta):
-        self.datetime_format = dict_meta["datetime_format"]
-        # Hopefully   self.datetime_format   can be passed to   super().load_meta
         self = super().load_meta(dict_meta)
+        self.ftable_feats = dict_meta["ftable_feats"]
+        # self.ftable_feats = self.parse_featnames() # take in self.ftables and self.colnames, not in dict_meta.
+        self.ftable_info = dict_meta["ftable_info"]
         return self
-    
-    
+
+
+
     def dump_meta(self):
         dict_meta = super().dump_meta()
-        dict_meta["datetime_format"] = self.datetime_format
+        dict_meta["ftable_feats"] = self.ftable_feats
+        dict_meta["ftable_info"] = self.ftable_info
         return dict_meta
 
 
+    
     """ Use BaseFEFS's """
     # def load_index_df(self, df_index, orders=None):
     #     pass
@@ -77,22 +96,20 @@ class TSFEFS(BaseFEFS):
     #     pass
     
 
-
+    
     def clone(self, path, name):
         
-        # It is supposed to be followed by tsfefs += df
-        tsfefs = super().clone(path, name)
-        tsfefs.datetime_format = self.datetime_format
-        return tsfefs
+        # It is supposed to be followed by consumpfs += df
+        consumpfs = super().clone(path, name)
+        consumpfs.ftables = dc(self.ftables)
+        consumpfs.ftable_feats = dc(self.ftable_feats)
+        consumpfs.ftable_info = dc(self.ftable_info)
+        return consumpfs
 
     ############################################ Init methods: END ############################################
     ###########################################################################################################
         
 
-        
-        
-        
-        
         
         
         
@@ -125,7 +142,7 @@ class TSFEFS(BaseFEFS):
 
     
     
-    
+
     """ Use BaseFEFS's """
     # def vprint(self,*value):
     #     pass
@@ -137,7 +154,11 @@ class TSFEFS(BaseFEFS):
         if not super().has_valid_status():
             return False
         
-        if self.datetime_format is None:
+        if consumpfs.ftables is None:
+            return False
+        elif consumpfs.ftable_feats is None:
+            return False
+        elif consumpfs.ftable_info is None:
             return False
         return True
         
@@ -158,6 +179,8 @@ class TSFEFS(BaseFEFS):
     """ Use BaseFEFS's """
     # def __write_piece(self, idx):
     #     pass
+
+
 
 
 
@@ -234,8 +257,6 @@ class TSFEFS(BaseFEFS):
 
     ################################################# Cache Ops: END #################################################
     ##################################################################################################################
-    
-    
     
     
     
@@ -593,6 +614,13 @@ class TSFEFS(BaseFEFS):
  
 
 
+    #####################################################################################################################
+    ############################################## Publish __get_seqs: BEG ##############################################
+    def get_seqs(self):
+        return self.__get_seqs()
+        
+    ############################################## Publish __get_seqs: END ##############################################
+    #####################################################################################################################
 
 
 
@@ -706,7 +734,185 @@ class TSFEFS(BaseFEFS):
     """ Use BaseFEFS's """
     # def remove(self):
     #     pass
+    
+    
+    
+    
+    ####################################################################################################################
+    ############################################## Consume functions: BEG ##############################################
+
+    
+    def __consume_all(self):
+    
+        df_consump = self.export_dataframe()
+        del self[:]
+        if self.has_pending_actions():
+            self.take_actions(max_level=4)              
+        return df_consump
+    
+    
+    
+    def __consume_range_of_records(self, fr, to, replacement=False):
+
+        assert isinstance(fr, int_types) and isinstance(to, int_types)
+        
+        assert to >= fr
+        assert to <= len(self)
+        
+        df_consump = self[fr:(to+1)]
+        df_consump = df_consump.reset_index(drop=True)
+        
+        if not replacement:
+            del self[indices]
+            if self.has_pending_actions():
+                self.take_actions(max_level=4)
+                          
+        return df_consump        
+        
+        
+
+    def __consume_by_rand_ids(self, req_ids, replacement=False):
+        
+        assert isinstance(req_ids, arr_types)
+        
+        """ all req_ids must be in df[seq_col] """
+        S = self[seq_col]
+        assert len(set(req_ids) - set(S)) == 0
+
+        req_ids = pd.Series(req_ids)
+        req_ids = req_ids.sort_values() # don't reset_index
+        
+        """ 
+        There can be duplicated ids in req_ids,
+        hence indices can also has duplications.
+        """
+        indices = [] # indices to be retrieved from S
+        idx = 0 # current pointer
+        s = S[0]
+        
+        req_id_iloc = 0 # current iloc pointer
+        req_id = req_ids.iloc[req_id_iloc]
+        
+        while req_id_iloc < len(req_ids):
+            if req_id == s:
+                indices += [idx]
+                req_id_iloc += 1
+                req_id = req_ids.iloc[req_id_iloc]                
+            elif req_id > s:
+                idx += 1
+                s = S[idx]
+            else:
+                assert False
+
+
+        indices = pd.Series(indices)
+        indices.index = req_ids.index
+        indices = [ indices[i] for i in range(len(indices)) ]
+        
+        df_consump = self[indices]
+        df_consump = df_consump.reset_index(drop=True)
+        
+        if not replacement:
+            del self[indices]
+            if self.has_pending_actions():
+                self.take_actions(max_level=4)
+                    
+        return df_consump
 
 
 
+    def __consume_rand_req_ids(self, randcnt, replacement=False):
+        
+        assert isinstance(randcnt, int_types)
+        
+        S = self[seq_col]
+        
+        if replacement:
+            # random.sample won't pick the same number
+            req_ids = random.sample(S, k=randcnt)
+        else:
+            # random.choices may pick the same number
+            req_ids = random.choices(S, k=randcnt)
+            
+        return self.__consume_by_req_ids(req_ids, replacement=replacement)
+
+    
+    
+    def consume(self, req_ids=None, fr=None, to=None, randcnt=None, replacement=False):
+        
+        if all([ param is None for param in [ req_ids, fr, to, randcnt ] ]):
+            df_consump = self.__consume_all()
+        elif req_ids is not None:
+            assert (fr is None) and (to is None)
+            assert randcnt is None
+            df_consump = self.__consume_by_req_ids(req_ids, replacement=replacement)
+        elif randcnt is not None:
+            assert (fr is None) and (to is None)
+            df_consump = self.__consume_by_rand_ids(randcnt, replacement=replacement)
+        elif fr is not None:
+            assert to is not None
+            df_consump = self.__consume_range_of_records(fr, to, replacement=replacement)
+        else:
+            assert False
+            
+        return df_consump
+
+    ############################################## Consume functions: END ##############################################
+    ####################################################################################################################
+
+    
+
+
+
+    ####################################################################################################################
+    ################################################ Used by SERVE: BEG ################################################
+    @classmethod
+    def __fill_dict_meta(cls, seq_col, cols):
+        dict_meta = dc(ConsumptionFS.default_incomplete_dict_meta)
+        dict_meta["seq_col"] = seq_col
+        dict_meta["colnames"] = cols
+        """ should have ftable_feats filled automatically """
+        dict_meta["ftable_feats"] = {}
+        """ should have ftable_info filled automatically """
+        dict_meta["ftable_info"] = {}
+        return dict_meta
+
+
+
+    @classmethod
+    def get_consumpfs_for_serve_store(cls, path, name, seq_col, df):
+
+        fullpath = "%s/%s.%s"%(path, name, ConsumptionFS.extension)        
+        try:
+
+            """
+            may not exist yet
+            """
+            consumpfs = ConsumptionFS()
+            consumpfs.read(fullpath)
+            
+            #############
+            #### New ####
+            assert consumpfs.seq_col == seq_col
+            assert set(list(df.columns)) - set(consumpfs.colnames) == set()
+            assert set(consumpfs.colnames) - set(list(df.columns)) == set()
+            #############
+            #############
+            
+        except:
+            dict_meta = ConsumptionFS.__fill_dict_meta(seq_col, list(df.columns))
+            consumpfs = ConsumptionFS.create(dict_meta, name)
+            consumpfs.path = path
+            
+        return consumpfs
+
+            
+    def update_consumpfs_in_serve_store(self, df):
+        self += df
+        self.take_actions(max_level=0) # level:update
+        self.optimize_files()
+        self.take_actions(max_level=3) # level:save
+        self.maintain_cache()
+        self.write()
+        return
 

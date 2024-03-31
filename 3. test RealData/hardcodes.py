@@ -1,2 +1,1 @@
-srcfolder = ""
-dstfolder = ""
+../hardcodes.py
