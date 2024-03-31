@@ -3842,9 +3842,10 @@ class BaseFEFS():
         elif type_ == self.__class__.__name__:
 
             fefs = self.__class__()
+            fullname += '.' + self.__class__.extension
             fefs.read(fullname)
             S = fefs.__get_seqs()
-        
+                    
         else:
             print("File type", self.__class__, "not supported")
             assert False
