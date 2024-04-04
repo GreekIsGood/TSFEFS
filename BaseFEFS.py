@@ -17,7 +17,7 @@ Done
  - Optimize the resolve conflict function.
  - Optimize the optimize_files function.
 
-
+ 
 """
 #########################################################################################################################
 #########################################################################################################################
@@ -1272,10 +1272,32 @@ class BaseFEFS():
             no need for split action
             """
             
-            # """ Newly added lines @ 01-03-2024 """
-            # self.dfs[idx] = None
-            # !!! HERE !!! """ How to tell the cache? """
-            self.actions[idx] = ""
+            """
+            modified @ 04-04-2024
+            
+            This modification is solely to incorporate the strange
+            logic in  import_dataframe(), which at its end has the 2 lines 
+            
+                self += df
+                self.__action_split(0)
+            
+            . When df is added to self, partial actions will be taken with  
+            some actions remain.
+            When the next line is taking action split by brute-force,
+            which is where we are now, the next line (now commented)
+            
+                self.actions[idx] = "" 
+            
+            will be run, remaining actions from adding df will be overwritten.
+            Hence now we have the modified codes as follow.
+            """
+            # self.actions[idx] = "" 
+            if self.actions[idx] == self.__class__.action_domain.index("split"):
+                self.actions[idx] = "" 
+            else:
+                # let the remaining actions be there, if there's any
+                # self.actions[idx] = self.actions[idx]
+                pass
             
             return
 
